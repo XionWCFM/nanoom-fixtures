@@ -44,7 +44,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          nanoom affected --json > affected.json
+          args=(affected --json)
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -n '${{ github.event.before }}' ]; then
+            args+=(--base '${{ github.event.before }}' --head "$GITHUB_SHA")
+          elif [ "$GITHUB_EVENT_NAME" = "merge_group" ] && [ -n '${{ github.event.merge_group.base_sha }}' ]; then
+            args+=(--base '${{ github.event.merge_group.base_sha }}' --head "$GITHUB_SHA")
+          fi
+          nanoom "${args[@]}" > affected.json
           jq -e '.group.ci.max_parallel == 2' affected.json
           jq -e '.group.ci.workspaces | type == "array"' affected.json
           echo "has_change=$(jq -r '.has_change' affected.json)" >> "$GITHUB_OUTPUT"
