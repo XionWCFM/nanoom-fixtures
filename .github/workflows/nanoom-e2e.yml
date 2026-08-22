@@ -1,0 +1,64 @@
+name: nanoom e2e
+
+on:
+  workflow_dispatch:
+    inputs:
+      nanoom-version:
+        description: nanoom release tag to install
+        required: false
+        default: latest
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PUSH_REF_NAME: ${{ github.ref_name }}
+  PULL_REQUEST_BASE_REF: ${{ github.base_ref }}
+  PULL_REQUEST_HEAD_REF: ${{ github.head_ref || github.sha }}
+
+jobs:
+  affected-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: XionWCFM/nanoom/.github/actions/setup-nanoom@main
+        with:
+          version: ${{ inputs.nanoom-version || 'latest' }}
+      - name: Calculate affected matrix
+        id: affected
+        run: |
+          nanoom affected --json > affected.json
+          jq -e '.group.ci.max_parallel == 2' affected.json
+          jq -e '.group.ci.workspaces | type == "array"' affected.json
+      - name: Install dependencies
+        run: nanoom install --package-manager npm
+      - name: Run application task
+        run: nanoom run ci test --runner npm --all
+      - name: Aggregate status
+        run: |
+          printf 'build_result=success\ntest_result=success\n' > "$RUNNER_TEMP/nanoom-output"
+          GITHUB_OUTPUT="$RUNNER_TEMP/nanoom-output" nanoom status build,test --format json
+
+  shard-and-isolate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: XionWCFM/nanoom/.github/actions/setup-nanoom@main
+        with:
+          version: ${{ inputs.nanoom-version || 'latest' }}
+      - run: nanoom install --package-manager npm
+      - name: Run shard 1
+        run: nanoom run ci test --runner npm --filter @nanoom-fixture/core --shard 1 --total-shards 2
+      - name: Run shard 2
+        run: nanoom run ci test --runner npm --filter @nanoom-fixture/core --shard 2 --total-shards 2
+      - name: Verify shard outputs
+        run: |
+          test -f packages/core/result-1-2.txt
+          test -f packages/core/result-2-2.txt
