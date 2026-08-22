@@ -57,9 +57,9 @@ jobs:
           repository: XionWCFM/nanoom
       - run: nanoom install --package-manager npm
       - name: Run shard 1
-        run: nanoom run ci test --runner npm --filter @nanoom-fixture/core --shard 1 --total-shards 2
+        run: nanoom run ci test --runner npm --all --filter @nanoom-fixture/core --shard 1 --total-shards 2
       - name: Run shard 2
-        run: nanoom run ci test --runner npm --filter @nanoom-fixture/core --shard 2 --total-shards 2
+        run: nanoom run ci test --runner npm --all --filter @nanoom-fixture/core --shard 2 --total-shards 2
       - name: Verify shard outputs
         run: |
           test -f packages/core/result-1-2.txt
