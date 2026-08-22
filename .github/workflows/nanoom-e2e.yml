@@ -119,10 +119,17 @@ jobs:
         run: |
           if [ '${{ needs.affected.outputs.has_change }}' != 'true' ]; then
             echo 'matrix_result=skipped' > "$RUNNER_TEMP/nanoom-output"
-          elif [ '${{ needs.matrix.result }}' = 'success' ]; then
-            echo 'matrix_result=success' > "$RUNNER_TEMP/nanoom-output"
           else
-            echo 'matrix_result=failure' > "$RUNNER_TEMP/nanoom-output"
+            result=failure
+            if [ '${{ needs.matrix.result }}' = 'success' ] && [ -n "$(find matrix-results -type f -name '*.result' -print -quit 2>/dev/null)" ]; then
+              result=success
+              while IFS='=' read -r workspace state; do
+                if [ "$state" != success ]; then
+                  result=failure
+                fi
+              done < <(find matrix-results -type f -name '*.result' -print0 | xargs -0 cat)
+            fi
+            echo "matrix_result=$result" > "$RUNNER_TEMP/nanoom-output"
           fi
       - name: Aggregate status with nanoom
         env:
