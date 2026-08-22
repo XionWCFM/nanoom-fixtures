@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "outputs": [],
+      "env": ["NANOOM_SHARD_INDEX", "NANOOM_SHARD_TOTAL"]
+    }
+  }
+}

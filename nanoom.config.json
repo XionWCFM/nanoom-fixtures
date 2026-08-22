@@ -10,5 +10,5 @@
       ]
     }
   },
-  "globalDependencies": ["package-lock.json", "nanoom.config.json"]
+  "globalDependencies": ["yarn.lock", "turbo.json", "nanoom.config.json"]
 }

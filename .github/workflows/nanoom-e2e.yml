@@ -7,9 +7,10 @@ on:
         description: nanoom release tag to install
         required: false
         default: latest
-  pull_request:
   push:
     branches: [main]
+  pull_request:
+  merge_group:
 
 permissions:
   contents: read
@@ -20,8 +21,12 @@ env:
   PULL_REQUEST_HEAD_REF: ${{ github.head_ref || github.sha }}
 
 jobs:
-  affected-matrix:
+  affected:
+    name: Calculate affected matrix
     runs-on: ubuntu-latest
+    outputs:
+      has_change: ${{ steps.calculate.outputs.has_change }}
+      matrix: ${{ steps.calculate.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,23 +35,32 @@ jobs:
         with:
           version: ${{ inputs.nanoom-version || 'latest' }}
           repository: XionWCFM/nanoom
-      - name: Calculate affected matrix
-        id: affected
+      - name: Enable Yarn 4
+        run: corepack enable
+      - name: Install fixture dependencies
+        run: yarn install --immutable
+      - name: Calculate affected workspaces and matrix
+        id: calculate
+        shell: bash
         run: |
+          set -euo pipefail
           nanoom affected --json > affected.json
           jq -e '.group.ci.max_parallel == 2' affected.json
           jq -e '.group.ci.workspaces | type == "array"' affected.json
-      - name: Install dependencies
-        run: nanoom install --package-manager npm
-      - name: Run application task
-        run: nanoom run ci test --runner npm --all
-      - name: Aggregate status
-        run: |
-          printf 'build_result=success\ntest_result=success\n' > "$RUNNER_TEMP/nanoom-output"
-          GITHUB_OUTPUT="$RUNNER_TEMP/nanoom-output" nanoom status build,test --format json
+          echo "has_change=$(jq -r '.has_change' affected.json)" >> "$GITHUB_OUTPUT"
+          MATRIX=$(jq -c '{include: [.group.ci.workspaces[] | {name, path, task} + (if .shard then {shard: .shard} else {} end) + (if .isolate == true then {isolate: true} else {} end)]}' affected.json)
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "$MATRIX"
 
-  shard-and-isolate:
+  matrix:
+    name: Run ${{ matrix.name }}
+    needs: affected
+    if: needs.affected.outputs.has_change == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.affected.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,12 +69,57 @@ jobs:
         with:
           version: ${{ inputs.nanoom-version || 'latest' }}
           repository: XionWCFM/nanoom
-      - run: nanoom install --package-manager npm
-      - name: Run shard 1
-        run: nanoom run ci test --runner npm --all --filter @nanoom-fixture/core --shard 1 --total-shards 2
-      - name: Run shard 2
-        run: nanoom run ci test --runner npm --all --filter @nanoom-fixture/core --shard 2 --total-shards 2
-      - name: Verify shard outputs
+      - name: Enable Yarn 4
+        run: corepack enable
+      - name: Install fixture dependencies
+        run: yarn install --immutable
+      - name: Run affected workspace through Turbo
         run: |
-          test -f packages/core/result-1-2.txt
-          test -f packages/core/result-2-2.txt
+          args=(run ci test --runner turbo --all --filter '${{ matrix.name }}')
+          if [ -n '${{ matrix.shard || '' }}' ]; then
+            args+=(--shard '${{ matrix.shard }}' --total-shards 2)
+          fi
+          nanoom "${args[@]}"
+      - name: Record matrix result
+        if: always()
+        run: |
+          mkdir -p matrix-results
+          printf '%s=%s\n' '${{ matrix.name }}' '${{ job.status }}' > "matrix-results/${{ strategy.job-index }}.result"
+      - name: Upload matrix result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-result-${{ strategy.job-index }}
+          path: matrix-results
+
+  status:
+    name: Aggregate dynamic matrix status
+    needs: [affected, matrix]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: XionWCFM/nanoom/.github/actions/setup-nanoom@main
+        with:
+          version: ${{ inputs.nanoom-version || 'latest' }}
+          repository: XionWCFM/nanoom
+      - name: Download matrix results
+        if: needs.affected.outputs.has_change == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: matrix-result-*
+          merge-multiple: true
+          path: matrix-results
+      - name: Seed aggregate result
+        run: |
+          if [ '${{ needs.affected.outputs.has_change }}' != 'true' ]; then
+            echo 'matrix_result=skipped' > "$RUNNER_TEMP/nanoom-output"
+          elif [ '${{ needs.matrix.result }}' = 'success' ]; then
+            echo 'matrix_result=success' > "$RUNNER_TEMP/nanoom-output"
+          else
+            echo 'matrix_result=failure' > "$RUNNER_TEMP/nanoom-output"
+          fi
+      - name: Aggregate status with nanoom
+        env:
+          GITHUB_OUTPUT: ${{ runner.temp }}/nanoom-output
+        run: nanoom status matrix --format json

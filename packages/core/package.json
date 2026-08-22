@@ -1,7 +1,11 @@
 {
   "name": "@nanoom-fixture/core",
   "version": "1.0.0",
+  "dependencies": {
+    "@nanoom-fixture/shared": "^1.0.0"
+  },
   "scripts": {
+    "build": "node -e \"console.log('core build')\"",
     "test": "node test.js"
   }
 }
