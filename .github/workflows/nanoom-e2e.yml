@@ -29,6 +29,7 @@ jobs:
       - uses: XionWCFM/nanoom/.github/actions/setup-nanoom@main
         with:
           version: ${{ inputs.nanoom-version || 'latest' }}
+          repository: XionWCFM/nanoom
       - name: Calculate affected matrix
         id: affected
         run: |
@@ -53,6 +54,7 @@ jobs:
       - uses: XionWCFM/nanoom/.github/actions/setup-nanoom@main
         with:
           version: ${{ inputs.nanoom-version || 'latest' }}
+          repository: XionWCFM/nanoom
       - run: nanoom install --package-manager npm
       - name: Run shard 1
         run: nanoom run ci test --runner npm --filter @nanoom-fixture/core --shard 1 --total-shards 2
