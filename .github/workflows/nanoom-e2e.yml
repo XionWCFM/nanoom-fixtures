@@ -23,7 +23,7 @@ jobs:
       - name: Enable Yarn 4
         run: corepack enable
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/nanoom-affected@c03db82
+        uses: XionWCFM/nanoom/.github/actions/nanoom-affected@c03db82c8d3ac8c025d007ea2e17e3e25d879d8f
         with:
           version: v0.1.7
           group: ci
@@ -45,13 +45,13 @@ jobs:
       - name: Enable Yarn 4
         run: corepack enable
       - name: Install selected workspace dependency closure
-        uses: XionWCFM/nanoom/.github/actions/nanoom-install@c03db82
+        uses: XionWCFM/nanoom/.github/actions/nanoom-install@c03db82c8d3ac8c025d007ea2e17e3e25d879d8f
         with:
           version: v0.1.7
           package-manager: yarn
           filter: ${{ matrix.name }}
       - name: Run selected workspace through Turbo
-        uses: XionWCFM/nanoom/.github/actions/nanoom-run@c03db82
+        uses: XionWCFM/nanoom/.github/actions/nanoom-run@c03db82c8d3ac8c025d007ea2e17e3e25d879d8f
         with:
           version: v0.1.7
           group: ci
@@ -72,7 +72,7 @@ jobs:
         with:
           fetch-depth: 100
       - name: Report direct matrix job result
-        uses: XionWCFM/nanoom/.github/actions/nanoom-status@c03db82
+        uses: XionWCFM/nanoom/.github/actions/nanoom-status@c03db82c8d3ac8c025d007ea2e17e3e25d879d8f
         with:
           version: v0.1.7
           jobs: affected,matrix
