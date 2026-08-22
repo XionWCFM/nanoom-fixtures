@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/XionWCFM/nanoom/main/nanoom.schema.json",
+  "group": {
+    "ci": {
+      "tasks": ["test"],
+      "concurrency": 2,
+      "rules": [
+        { "name": "@nanoom-fixture/core", "shard": [{ "task": "test", "shard": 2 }] },
+        { "name": "@nanoom-fixture/app", "isolate": ["test"] }
+      ]
+    }
+  },
+  "globalDependencies": ["package-lock.json", "nanoom.config.json"]
+}
