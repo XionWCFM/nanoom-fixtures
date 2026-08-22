@@ -9,11 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  PUSH_REF_NAME: ${{ github.ref_name }}
-  PULL_REQUEST_BASE_REF: ${{ github.base_ref }}
-  PULL_REQUEST_HEAD_REF: ${{ github.head_ref || github.sha }}
-
 jobs:
   affected:
     name: Calculate affected matrix
@@ -32,7 +27,7 @@ jobs:
         with:
           version: v0.1.7
           group: ci
-          base: ${{ github.event.before || github.event.merge_group.base_sha || '' }}
+          base: ${{ github.event.pull_request.base.sha || github.event.before || github.event.merge_group.base_sha || '' }}
           head: ${{ github.sha }}
 
   matrix:
