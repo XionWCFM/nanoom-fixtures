@@ -1,1 +1,1 @@
-module.exports = { name: 'shared-v2' };
+module.exports = { name: 'shared-v3' };
