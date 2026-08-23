@@ -1,4 +1,5 @@
 name: nanoom e2e
+# The workflow is intentionally exercised on pull requests and main pushes.
 on:
   push:
     branches: [main]
@@ -23,10 +24,14 @@ jobs:
           if [ -n "$GITHUB_HEAD_REF" ]; then git fetch origin "$GITHUB_HEAD_REF:$GITHUB_HEAD_REF" --depth=100; fi
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@main
-        with: {group: ci}
+        with:
+          group: ci
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          head: ${{ github.sha }}
   matrix:
     name: Run ${{ matrix.name }}
     needs: affected
+    if: needs.affected.outputs.has_change == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
