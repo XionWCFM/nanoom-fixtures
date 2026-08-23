@@ -1,5 +1,6 @@
 name: nanoom e2e
 # The workflow is intentionally exercised on pull requests and main pushes.
+# nanoom owns event ref resolution and tool detection.
 on:
   push:
     branches: [main]
