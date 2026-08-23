@@ -45,6 +45,7 @@ jobs:
           monorepoTool: turbo
           matrix: ${{ toJSON(matrix) }}
   status:
+    name: Aggregate dynamic matrix status
     if: always()
     needs: [affected, matrix]
     runs-on: ubuntu-latest
