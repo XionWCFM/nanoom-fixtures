@@ -6,9 +6,13 @@
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^test"],
+      "dependsOn": ["^build"],
       "outputs": [],
       "env": ["NANOOM_SHARD_INDEX", "NANOOM_SHARD_TOTAL"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
     }
   }
 }

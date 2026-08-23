@@ -1,0 +1,4 @@
+{
+  "extends": "@nanoom-fixture/typescript-configs/node.json",
+  "include": ["vite.config.ts"]
+}

@@ -1,8 +1,21 @@
 {
   "name": "@nanoom-fixture/shared",
   "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "types": "./index.ts",
+    "import": "./index.ts"
+  },
   "scripts": {
-    "build": "node -e \"console.log('shared build')\"",
-    "test": "node test.js"
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@nanoom-fixture/typescript-configs": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }
