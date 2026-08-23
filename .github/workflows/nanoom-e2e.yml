@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 100}
+      - run: git fetch origin main --depth=100
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@main
         with: {group: ci}
