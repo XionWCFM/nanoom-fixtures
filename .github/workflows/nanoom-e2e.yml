@@ -1,4 +1,5 @@
 name: nanoom e2e
+# The workflow is intentionally exercised on pull requests and main pushes.
 on:
   push:
     branches: [main]
