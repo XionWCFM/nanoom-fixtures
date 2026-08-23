@@ -12,13 +12,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nanoom-fixture/shared": "^1.0.0"
+    "@nanoom-fixture/shared": "^1.0.0",
+    "vitest": "catalog:"
   },
   "devDependencies": {
     "@nanoom-fixture/typescript-configs": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "vite": "catalog:"
   }
 }
