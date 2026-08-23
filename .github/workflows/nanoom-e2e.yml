@@ -7,9 +7,6 @@ on:
   merge_group:
 permissions:
   contents: read
-env:
-  PULL_REQUEST_BASE_REF: ${{ github.base_ref }}
-  PULL_REQUEST_HEAD_REF: ${{ github.head_ref || github.sha }}
 jobs:
   affected:
     runs-on: ubuntu-latest
@@ -19,17 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 100}
-      - run: |
-          if [ "$GITHUB_REF" = "refs/heads/main" ]; then git fetch origin main --depth=100; else git fetch origin main:main --depth=100; fi
-          if [ -n "$GITHUB_HEAD_REF" ]; then git fetch origin "$GITHUB_HEAD_REF:$GITHUB_HEAD_REF" --depth=100; fi
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@main
         with:
           group: ci
-          base: ${{ github.event_name == 'push' && github.event.before || '' }}
-          head: ${{ github.sha }}
   matrix:
-    name: Run ${{ matrix.name }}
+    name: matrix
     needs: affected
     if: needs.affected.outputs.has_change == 'true'
     runs-on: ubuntu-latest
@@ -42,15 +34,12 @@ jobs:
       - run: corepack enable
       - uses: XionWCFM/nanoom/.github/actions/install@main
         with:
-          packageManager: yarn
           matrix: ${{ toJSON(matrix) }}
       - uses: XionWCFM/nanoom/.github/actions/run@main
         with:
-          packageManager: yarn
-          monorepoTool: turbo
           matrix: ${{ toJSON(matrix) }}
   status:
-    name: Aggregate dynamic matrix status
+    name: status
     if: always()
     needs: [affected, matrix]
     runs-on: ubuntu-latest
