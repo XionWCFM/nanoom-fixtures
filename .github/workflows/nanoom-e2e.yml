@@ -31,6 +31,7 @@ jobs:
   matrix:
     name: Run ${{ matrix.name }}
     needs: affected
+    if: needs.affected.outputs.has_change == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
