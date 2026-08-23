@@ -11,13 +11,11 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
     "test": "vitest run"
   },
-  "dependencies": {
-    "vitest": "catalog:"
-  },
   "devDependencies": {
     "@nanoom-fixture/typescript-configs": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

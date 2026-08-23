@@ -8,13 +8,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nanoom-fixture/core": "^1.0.0",
-    "vitest": "catalog:"
+    "@nanoom-fixture/core": "^1.0.0"
   },
   "devDependencies": {
     "@nanoom-fixture/typescript-configs": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }
