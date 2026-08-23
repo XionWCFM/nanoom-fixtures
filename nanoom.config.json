@@ -3,7 +3,6 @@
   "group": {
     "ci": {
       "tasks": ["test"],
-      "concurrency": 2,
       "rules": [
         { "name": "@nanoom-fixture/core", "shard": [{ "task": "test", "shard": 2 }] },
         { "name": "@nanoom-fixture/app", "isolate": ["test"] }
