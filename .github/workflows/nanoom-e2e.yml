@@ -12,17 +12,16 @@ jobs:
   affected:
     runs-on: ubuntu-latest
     outputs:
-      has_change: ${{ steps.calculate.outputs.has_change }}
       groups: ${{ steps.calculate.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 100 }
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@main
-  matrix:
-    name: matrix
+  run:
+    name: run
     needs: affected
-    if: needs.affected.outputs.has_change == 'true'
+    if: ${{ fromJSON(needs.affected.outputs.groups).ci.hasChange }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -40,7 +39,7 @@ jobs:
   status:
     name: status
     if: always()
-    needs: [affected, matrix]
+    needs: [affected, run]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,3 +47,5 @@ jobs:
       - uses: XionWCFM/nanoom/.github/actions/status@main
         with:
           needs: ${{ toJSON(needs) }}
+          matrixJob: run
+          group: ci
