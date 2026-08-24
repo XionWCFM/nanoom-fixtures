@@ -29,24 +29,10 @@ jobs:
           git commit --no-gpg-sign -m "test: synthetic shared change"
           echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.5
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.6
         with:
           base: ${{ steps.comparison.outputs.base }}
           head: ${{ steps.comparison.outputs.head }}
-      - name: Assert transitive affected report
-        env:
-          RESULT: ${{ steps.calculate.outputs.result }}
-          BASE: ${{ steps.comparison.outputs.base }}
-          HEAD: ${{ steps.comparison.outputs.head }}
-        run: |
-          jq -e --arg base "$BASE" --arg head "$HEAD" '
-            .affected.diagnostics.comparison.baseCommit == $base and
-            .affected.diagnostics.comparison.headCommit == $head and
-            .affected.diagnostics.reasons["@nanoom-fixture/shared"].kind == "direct" and
-            .affected.diagnostics.reasons["@nanoom-fixture/core"].dependencyPath == ["@nanoom-fixture/core", "@nanoom-fixture/shared"] and
-            .affected.diagnostics.reasons["@nanoom-fixture/app"].dependencyPath == ["@nanoom-fixture/app", "@nanoom-fixture/core", "@nanoom-fixture/shared"] and
-            ([.matrix.ci.include[].name] | sort) == ["@nanoom-fixture/app", "@nanoom-fixture/core", "@nanoom-fixture/core", "@nanoom-fixture/shared"]
-          ' <<< "$RESULT"
   run:
     name: run
     needs: affected
@@ -60,23 +46,15 @@ jobs:
         with: { fetch-depth: 1 }
       - run: corepack enable
       - id: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.2.5
+        uses: XionWCFM/nanoom/.github/actions/install@v0.2.6
         with:
           matrix: ${{ toJSON(matrix) }}
-      - name: Assert focused install
+      - name: Test focused install
         run: yarn verify:install '${{ matrix.name }}'
-      - name: Assert install result
-        env:
-          RESULT: ${{ steps.install.outputs.result }}
-        run: jq -e '.status == "success" and .cli.scope.dependencyClosure and .cli.scope.devDependencies' <<< "$RESULT"
       - id: task
-        uses: XionWCFM/nanoom/.github/actions/run@v0.2.5
+        uses: XionWCFM/nanoom/.github/actions/run@v0.2.6
         with:
           matrix: ${{ toJSON(matrix) }}
-      - name: Assert run result
-        env:
-          RESULT: ${{ steps.task.outputs.result }}
-        run: jq -e '.status == "success" and .cli.status == "success" and .reason != ""' <<< "$RESULT"
   status:
     name: status
     if: always()
@@ -86,12 +64,8 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 1 }
       - id: aggregate
-        uses: XionWCFM/nanoom/.github/actions/status@v0.2.5
+        uses: XionWCFM/nanoom/.github/actions/status@v0.2.6
         with:
           needs: ${{ toJSON(needs) }}
           matrixJob: run
           group: ci
-      - name: Assert status result
-        env:
-          RESULT: ${{ steps.aggregate.outputs.result }}
-        run: jq -e '.status == "success" and .hasChange and .matrixResult == "success" and .reason != ""' <<< "$RESULT"

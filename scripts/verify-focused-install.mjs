@@ -21,17 +21,8 @@ if (missing.length) throw new Error(`focused install is missing: ${missing.join(
 if (existsSync(unrelated))
   throw new Error(`focused install leaked unrelated workspace: ${unrelated}`);
 
-console.log(
-  JSON.stringify(
-    {
-      status: "success",
-      selected,
-      reason:
-        "root dev tools, selected dev dependency, and transitive runtime closure are installed without unrelated workspaces",
-      required,
-      absent: [unrelated],
-    },
-    null,
-    2,
-  ),
-);
+console.log(`focused install: ${selected}`);
+console.log("  why: root dev tools + selected workspace + transitive closure");
+console.log(`  required: ${required.join(", ")}`);
+console.log(`  unrelated absent: ${unrelated}`);
+console.log("  result: success");
