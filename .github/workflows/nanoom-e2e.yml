@@ -19,7 +19,6 @@ jobs:
         with: { fetch-depth: 100 }
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@main
-        with:
   matrix:
     name: matrix
     needs: affected
