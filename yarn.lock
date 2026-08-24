@@ -65,6 +65,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@nanoom-fixture/unrelated@workspace:packages/unrelated":
+  version: 0.0.0-use.local
+  resolution: "@nanoom-fixture/unrelated@workspace:packages/unrelated"
+  languageName: unknown
+  linkType: soft
+
 "@oxc-project/types@npm:=0.146.0":
   version: 0.146.0
   resolution: "@oxc-project/types@npm:0.146.0"

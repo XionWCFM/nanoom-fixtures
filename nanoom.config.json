@@ -5,7 +5,8 @@
       "tasks": ["test"],
       "rules": [
         { "name": "@nanoom-fixture/core", "shard": [{ "task": "test", "shard": 2 }] },
-        { "name": "@nanoom-fixture/app", "isolate": ["test"] }
+        { "name": "@nanoom-fixture/app", "isolate": ["test"] },
+        { "name": "@nanoom-fixture/unrelated", "ignore": true }
       ]
     }
   },

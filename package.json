@@ -9,6 +9,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "verify:install": "node scripts/verify-focused-install.mjs",
     "lint": "oxlint .",
     "format": "oxfmt --check .",
     "format:write": "oxfmt .",
