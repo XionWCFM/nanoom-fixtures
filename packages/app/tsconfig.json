@@ -1,0 +1,4 @@
+{
+  "extends": "@nanoom-fixture/typescript-configs/app.json",
+  "include": ["index.ts", "index.test.ts"]
+}

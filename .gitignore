@@ -1,4 +1,7 @@
 node_modules/
 .yarn/*
 .turbo/
+.vite/
+dist/
+.pnp.*
 packages/*/result*.txt

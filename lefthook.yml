@@ -1,0 +1,14 @@
+pre-commit:
+  commands:
+    lint:
+      run: mise exec -- yarn lint
+      priority: 1
+    format:
+      run: mise exec -- yarn format
+      priority: 2
+    typecheck:
+      run: mise exec -- yarn typecheck
+      priority: 3
+    build:
+      run: mise exec -- yarn build
+      priority: 4

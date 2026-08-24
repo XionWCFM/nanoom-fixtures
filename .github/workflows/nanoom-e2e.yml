@@ -2,6 +2,7 @@ name: nanoom e2e
 # The workflow is intentionally exercised on pull requests and main pushes.
 # nanoom owns event ref resolution and tool detection.
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -12,41 +13,40 @@ jobs:
   affected:
     runs-on: ubuntu-latest
     outputs:
-      has_change: ${{ steps.calculate.outputs.has_change }}
-      matrix: ${{ steps.calculate.outputs.matrix }}
+      groups: ${{ steps.calculate.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
-        with: {fetch-depth: 100}
+        with: { fetch-depth: 100 }
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@main
-        with:
-          group: ci
-  matrix:
-    name: matrix
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.4
+  run:
+    name: run
     needs: affected
-    if: needs.affected.outputs.has_change == 'true'
+    if: ${{ fromJSON(needs.affected.outputs.groups).ci.hasChange }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.affected.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).ci.matrix }}
     steps:
       - uses: actions/checkout@v4
-        with: {fetch-depth: 1}
+        with: { fetch-depth: 1 }
       - run: corepack enable
-      - uses: XionWCFM/nanoom/.github/actions/install@main
+      - uses: XionWCFM/nanoom/.github/actions/install@v0.2.4
         with:
           matrix: ${{ toJSON(matrix) }}
-      - uses: XionWCFM/nanoom/.github/actions/run@main
+      - uses: XionWCFM/nanoom/.github/actions/run@v0.2.4
         with:
           matrix: ${{ toJSON(matrix) }}
   status:
     name: status
     if: always()
-    needs: [affected, matrix]
+    needs: [affected, run]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: {fetch-depth: 1}
-      - uses: XionWCFM/nanoom/.github/actions/status@main
+        with: { fetch-depth: 1 }
+      - uses: XionWCFM/nanoom/.github/actions/status@v0.2.4
         with:
           needs: ${{ toJSON(needs) }}
+          matrixJob: run
+          group: ci

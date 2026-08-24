@@ -1,15 +1,27 @@
 {
   "name": "nanoom-fixtures",
   "private": true,
-  "packageManager": "yarn@4.9.2",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "tools/*"
   ],
   "scripts": {
     "build": "turbo run build",
-    "test": "turbo run test"
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "oxlint .",
+    "format": "oxfmt --check .",
+    "format:write": "oxfmt .",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
-    "turbo": "^2.5.6"
-  }
+    "lefthook": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  },
+  "packageManager": "yarn@4.11.0"
 }
