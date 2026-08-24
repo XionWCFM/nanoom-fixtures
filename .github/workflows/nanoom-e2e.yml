@@ -2,6 +2,7 @@ name: nanoom e2e
 # The workflow is intentionally exercised on pull requests and main pushes.
 # nanoom owns event ref resolution and tool detection.
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -17,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 100 }
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@main
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.3
   run:
     name: run
     needs: affected
@@ -30,10 +31,10 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 1 }
       - run: corepack enable
-      - uses: XionWCFM/nanoom/.github/actions/install@main
+      - uses: XionWCFM/nanoom/.github/actions/install@v0.2.3
         with:
           matrix: ${{ toJSON(matrix) }}
-      - uses: XionWCFM/nanoom/.github/actions/run@main
+      - uses: XionWCFM/nanoom/.github/actions/run@v0.2.3
         with:
           matrix: ${{ toJSON(matrix) }}
   status:
@@ -44,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 1 }
-      - uses: XionWCFM/nanoom/.github/actions/status@main
+      - uses: XionWCFM/nanoom/.github/actions/status@v0.2.3
         with:
           needs: ${{ toJSON(needs) }}
           matrixJob: run
