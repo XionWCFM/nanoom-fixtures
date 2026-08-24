@@ -13,14 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has_change: ${{ steps.calculate.outputs.has_change }}
-      matrix: ${{ steps.calculate.outputs.matrix }}
+      groups: ${{ steps.calculate.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 100 }
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@main
         with:
-          group: ci
   matrix:
     name: matrix
     needs: affected
@@ -28,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.affected.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).ci.matrix }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 1 }
