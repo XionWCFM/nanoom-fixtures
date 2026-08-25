@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  affected:
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.calculate.outputs.groups }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+      - id: calculate
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.8
+
+  run:
+    name: run
+    needs: affected
+    if: ${{ fromJSON(needs.affected.outputs.groups).ci.hasChange }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).ci.matrix }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - run: corepack enable
+      
+      - name: install
+        uses: XionWCFM/nanoom/.github/actions/install@v0.2.8
+        with:
+          matrix: ${{ toJSON(matrix) }}
+
+      - name: run
+        uses: XionWCFM/nanoom/.github/actions/run@v0.2.8
+        with:
+          matrix: ${{ toJSON(matrix) }}
+
+  status:
+    name: status
+    if: always()
+    needs: [affected, run]
+    runs-on: ubuntu-latest
+    steps:
+      - name: result
+        uses: XionWCFM/nanoom/.github/actions/status@v0.2.8
+        with:
+          needs: ${{ toJSON(needs) }}
