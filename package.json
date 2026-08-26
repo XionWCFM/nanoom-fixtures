@@ -1,9 +1,10 @@
 {
-  "name": "nanoom-fixtures",
+  "name": "root",
   "private": true,
   "workspaces": [
     "packages/*",
-    "tools/*"
+    "tools/*",
+    "services/*"
   ],
   "scripts": {
     "build": "turbo run build",
