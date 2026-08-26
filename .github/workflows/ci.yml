@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 1
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.8
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.9
 
   run:
     name: run
@@ -39,12 +39,12 @@ jobs:
       - run: corepack enable
 
       - name: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.2.8
+        uses: XionWCFM/nanoom/.github/actions/install@v0.2.9
         with:
           matrix: ${{ toJSON(matrix) }}
 
       - name: run
-        uses: XionWCFM/nanoom/.github/actions/run@v0.2.8
+        uses: XionWCFM/nanoom/.github/actions/run@v0.2.9
         with:
           matrix: ${{ toJSON(matrix) }}
 
@@ -55,6 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: result
-        uses: XionWCFM/nanoom/.github/actions/status@v0.2.8
+        uses: XionWCFM/nanoom/.github/actions/status@v0.2.9
         with:
           needs: ${{ toJSON(needs) }}
