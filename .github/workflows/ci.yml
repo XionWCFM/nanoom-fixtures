@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 100
+          fetch-depth: 1
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@v0.2.8
 
@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 1
 
       - run: corepack enable
-      
+
       - name: install
         uses: XionWCFM/nanoom/.github/actions/install@v0.2.8
         with:
