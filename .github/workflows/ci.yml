@@ -7,54 +7,140 @@ on:
   merge_group:
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
-  affected:
+  yarn-affected:
+    name: Yarn + Turbo affected
     runs-on: ubuntu-latest
     outputs:
       groups: ${{ steps.calculate.outputs.groups }}
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 100
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.8
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.1
+        with:
+          scheduler: artifact
+          timingRunner: turbo
+          historyArtifactName: nanoom-timing-history
+      - env:
+          RESULT: ${{ steps.calculate.outputs.result }}
+        run: jq -e '.scheduling.timingRunner == "turbo" and (.scheduling.historyStatus == "loaded" or .scheduling.historyStatus == "fallback") and .affected.group.ci.distribution.concurrency == 2' <<< "$RESULT"
 
-  run:
-    name: run
-    needs: affected
-    if: ${{ fromJSON(needs.affected.outputs.groups).ci.hasChange }}
+  yarn-run:
+    name: Yarn + Turbo (${{ matrix.assignmentId }})
+    needs: yarn-affected
+    if: ${{ fromJSON(needs.yarn-affected.outputs.groups).ci.hasChange }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.affected.outputs.groups).ci.matrix }}
+      matrix: ${{ fromJSON(needs.yarn-affected.outputs.groups).ci.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - id: install
+        uses: XionWCFM/nanoom/.github/actions/install@v0.3.1
+        with:
+          packageManager: yarn
+          matrix: ${{ toJSON(matrix) }}
+      - name: Verify multi-workspace focused install
+        run: while IFS= read -r name; do yarn verify:install "$name"; done < <(jq -r '[.items[].name] | unique[]' <<< '${{ toJSON(matrix) }}')
+      - id: task
+        uses: XionWCFM/nanoom/.github/actions/run@v0.3.1
+        with:
+          packageManager: yarn
+          monorepoTool: turbo
+          matrix: ${{ toJSON(matrix) }}
+          group: ci
+          scheduler: artifact
+      - env:
+          RESULT: ${{ steps.task.outputs.result }}
+        run: jq -e '.status == "success" and ([.results[].cli.executions[] | .runner == "turbo" and .durationMs >= 0] | all)' <<< "$RESULT"
 
+  pnpm-affected:
+    name: pnpm + Nx affected
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.calculate.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 100
+      - run: bash fixtures/pnpm-nx/setup.sh
+      - id: calculate
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.1
+        with:
+          cwd: .pnpm-nx-fixture
+          base: main
+          head: HEAD
+          scheduler: artifact
+          timingRunner: nx
+          historyArtifactName: nanoom-timing-history
+      - env:
+          RESULT: ${{ steps.calculate.outputs.result }}
+        run: jq -e '.scheduling.timingRunner == "nx" and .affected.group.ci.distribution.concurrency == 2' <<< "$RESULT"
 
+  pnpm-run:
+    name: pnpm + Nx (${{ matrix.assignmentId }})
+    needs: pnpm-affected
+    if: ${{ fromJSON(needs.pnpm-affected.outputs.groups).ci.hasChange }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.pnpm-affected.outputs.groups).ci.matrix }}
+    steps:
+      - uses: actions/checkout@v4
       - run: corepack enable
-      
-      - name: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.2.8
+      - run: bash fixtures/pnpm-nx/setup.sh
+      - id: install
+        uses: XionWCFM/nanoom/.github/actions/install@v0.3.1
         with:
+          cwd: .pnpm-nx-fixture
+          packageManager: pnpm
           matrix: ${{ toJSON(matrix) }}
+      - name: Verify multi-workspace focused install
+        working-directory: .pnpm-nx-fixture
+        run: node verify-install.mjs '${{ toJSON(matrix) }}'
+      - id: task
+        uses: XionWCFM/nanoom/.github/actions/run@v0.3.1
+        with:
+          cwd: .pnpm-nx-fixture
+          packageManager: pnpm
+          monorepoTool: nx
+          matrix: ${{ toJSON(matrix) }}
+          group: ci
+          scheduler: artifact
+      - env:
+          RESULT: ${{ steps.task.outputs.result }}
+        run: jq -e '.status == "success" and ([.results[].cli.executions[] | .runner == "nx" and .durationMs >= 0] | all)' <<< "$RESULT"
 
-      - name: run
-        uses: XionWCFM/nanoom/.github/actions/run@v0.2.8
+  history:
+    name: timing history
+    needs: [yarn-run, pnpm-run]
+    runs-on: ubuntu-latest
+    steps:
+      - id: merge
+        uses: XionWCFM/nanoom/.github/actions/history@v0.3.1
         with:
-          matrix: ${{ toJSON(matrix) }}
+          scheduler: artifact
+          historyArtifactName: nanoom-timing-history
+      - env:
+          RESULT: ${{ steps.merge.outputs.result }}
+        run: jq -e '.status == "success" and .cli.sampleCount > 0 and .uploadMs >= 0' <<< "$RESULT"
 
   status:
     name: status
     if: always()
-    needs: [affected, run]
+    needs: [yarn-affected, yarn-run, pnpm-affected, pnpm-run]
     runs-on: ubuntu-latest
     steps:
-      - name: result
-        uses: XionWCFM/nanoom/.github/actions/status@v0.2.8
+      - id: result
+        uses: XionWCFM/nanoom/.github/actions/status@v0.3.1
         with:
           needs: ${{ toJSON(needs) }}
+      - env:
+          RESULT: ${{ steps.result.outputs.result }}
+        run: jq -e '.status == "success" and (.jobs | length) == 4' <<< "$RESULT"

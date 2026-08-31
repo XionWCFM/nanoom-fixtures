@@ -1,6 +1,8 @@
 node_modules/
 .yarn/*
 .turbo/
+.nx/
+.pnpm-nx-fixture*/
 .vite/
 dist/
 .pnp.*

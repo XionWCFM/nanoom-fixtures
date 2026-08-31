@@ -1,0 +1,7 @@
+{
+  "name": "@pnpm-nx/unrelated",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node -e \"throw new Error('unrelated workspace must not run')\""
+  }
+}
