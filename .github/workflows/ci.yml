@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 100
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.1
         with:
           scheduler: artifact
           timingRunner: turbo
@@ -42,14 +42,14 @@ jobs:
       - uses: actions/checkout@v4
       - run: corepack enable
       - id: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/install@v0.3.1
         with:
           packageManager: yarn
           matrix: ${{ toJSON(matrix) }}
       - name: Verify multi-workspace focused install
         run: while IFS= read -r name; do yarn verify:install "$name"; done < <(jq -r '[.items[].name] | unique[]' <<< '${{ toJSON(matrix) }}')
       - id: task
-        uses: XionWCFM/nanoom/.github/actions/run@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/run@v0.3.1
         with:
           packageManager: yarn
           monorepoTool: turbo
@@ -71,7 +71,7 @@ jobs:
           fetch-depth: 100
       - run: bash fixtures/pnpm-nx/setup.sh
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.1
         with:
           cwd: .pnpm-nx-fixture
           base: main
@@ -96,7 +96,7 @@ jobs:
       - run: corepack enable
       - run: bash fixtures/pnpm-nx/setup.sh
       - id: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/install@v0.3.1
         with:
           cwd: .pnpm-nx-fixture
           packageManager: pnpm
@@ -105,7 +105,7 @@ jobs:
         working-directory: .pnpm-nx-fixture
         run: node verify-install.mjs '${{ toJSON(matrix) }}'
       - id: task
-        uses: XionWCFM/nanoom/.github/actions/run@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/run@v0.3.1
         with:
           cwd: .pnpm-nx-fixture
           packageManager: pnpm
@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: merge
-        uses: XionWCFM/nanoom/.github/actions/history@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/history@v0.3.1
         with:
           scheduler: artifact
           historyArtifactName: nanoom-timing-history
@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: result
-        uses: XionWCFM/nanoom/.github/actions/status@v0.3.0
+        uses: XionWCFM/nanoom/.github/actions/status@v0.3.1
         with:
           needs: ${{ toJSON(needs) }}
       - env:
