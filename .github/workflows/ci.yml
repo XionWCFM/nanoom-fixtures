@@ -69,10 +69,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 100
+      - run: bash fixtures/pnpm-nx/setup.sh
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@v0.3.0
         with:
-          cwd: fixtures/pnpm-nx
+          cwd: .pnpm-nx-fixture
+          base: main
+          head: HEAD
           scheduler: artifact
           timingRunner: nx
           historyArtifactName: nanoom-timing-history
@@ -91,19 +94,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable
+      - run: bash fixtures/pnpm-nx/setup.sh
       - id: install
         uses: XionWCFM/nanoom/.github/actions/install@v0.3.0
         with:
-          cwd: fixtures/pnpm-nx
+          cwd: .pnpm-nx-fixture
           packageManager: pnpm
           matrix: ${{ toJSON(matrix) }}
       - name: Verify multi-workspace focused install
-        working-directory: fixtures/pnpm-nx
+        working-directory: .pnpm-nx-fixture
         run: node verify-install.mjs '${{ toJSON(matrix) }}'
       - id: task
         uses: XionWCFM/nanoom/.github/actions/run@v0.3.0
         with:
-          cwd: fixtures/pnpm-nx
+          cwd: .pnpm-nx-fixture
           packageManager: pnpm
           monorepoTool: nx
           matrix: ${{ toJSON(matrix) }}
