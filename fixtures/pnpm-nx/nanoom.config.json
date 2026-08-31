@@ -8,11 +8,8 @@
         "medium": { "maxAffectedPercent": 60, "concurrency": 2 },
         "full": { "maxAffectedPercent": 100, "concurrency": 2 }
       },
-      "rules": [
-        { "name": "@nanoom-fixture/core", "shard": [{ "task": "test", "shard": 2 }] },
-        { "name": "@nanoom-fixture/unrelated", "ignore": true }
-      ]
+      "rules": [{ "name": "@pnpm-nx/unrelated", "ignore": true }]
     }
   },
-  "globalDependencies": ["yarn.lock", "turbo.json", "nanoom.config.json"]
+  "globalDependencies": ["pnpm-lock.yaml", "nx.json", "nanoom.config.json"]
 }

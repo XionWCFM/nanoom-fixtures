@@ -1,0 +1,10 @@
+{
+  "name": "@pnpm-nx/app",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node test.mjs"
+  },
+  "dependencies": {
+    "@pnpm-nx/core": "workspace:*"
+  }
+}

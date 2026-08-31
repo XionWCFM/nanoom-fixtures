@@ -1,0 +1,11 @@
+{
+  "name": "@pnpm-nx/core",
+  "version": "1.0.0",
+  "main": "index.cjs",
+  "scripts": {
+    "test": "node test.cjs"
+  },
+  "dependencies": {
+    "@pnpm-nx/shared": "workspace:*"
+  }
+}
