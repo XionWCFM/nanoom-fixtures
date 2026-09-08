@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/XionWCFM/nanoom/main/nanoom.schema.json",
   "group": {
-    "ci": {
+    "nx": {
       "tasks": ["test"],
       "distribution": {
         "small": { "maxAffectedPercent": 25, "concurrency": 1 },

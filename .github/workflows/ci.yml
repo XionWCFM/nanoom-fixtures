@@ -90,16 +90,16 @@ jobs:
           historyArtifactName: nanoom-timing-history
       - env:
           RESULT: ${{ steps.calculate.outputs.result }}
-        run: jq -e '.scheduling.timingRunner == "nx" and .affected.group.ci.distribution.concurrency == 2' <<< "$RESULT"
+        run: jq -e '.scheduling.timingRunner == "nx" and .affected.group.nx.distribution.concurrency == 2' <<< "$RESULT"
 
   pnpm-run:
     name: pnpm + Nx (${{ matrix.assignmentId }})
     needs: pnpm-affected
-    if: ${{ fromJSON(needs.pnpm-affected.outputs.groups).ci.hasChange }}
+    if: ${{ fromJSON(needs.pnpm-affected.outputs.groups).nx.hasChange }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.pnpm-affected.outputs.groups).ci.matrix }}
+      matrix: ${{ fromJSON(needs.pnpm-affected.outputs.groups).nx.matrix }}
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable
@@ -120,7 +120,7 @@ jobs:
           packageManager: pnpm
           monorepoTool: nx
           matrix: ${{ toJSON(matrix) }}
-          group: ci
+          group: nx
           scheduler: artifact
       - env:
           RESULT: ${{ steps.task.outputs.result }}
@@ -138,7 +138,7 @@ jobs:
           historyArtifactName: nanoom-timing-history
       - env:
           RESULT: ${{ steps.merge.outputs.result }}
-        run: jq -e '.status == "success" and .cli.sampleCount > 0 and .uploadMs >= 0' <<< "$RESULT"
+        run: jq -e '.status == "success" and .cli.sampleCount >= 7 and .cli.inputCount >= 4 and .uploadMs >= 0' <<< "$RESULT"
 
   status:
     name: status
