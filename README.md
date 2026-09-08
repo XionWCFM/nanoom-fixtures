@@ -9,3 +9,6 @@ each test writes a result file and prints its shard context.
 Hosted workflow는 affected assignment, 여러 workspace의 focused install,
 실제 Turbo/Nx task 실행, 성공 실행시간 sample, artifact history 병합, needs-only
 aggregate status를 각각 확인한다.
+
+Yarn 경로는 checkout 뒤 `packages/shared/changed.txt`를 커밋해 실제 shared
+변경을 만들고, 그 커밋을 기준으로 Turbo affected matrix를 실행한다.
