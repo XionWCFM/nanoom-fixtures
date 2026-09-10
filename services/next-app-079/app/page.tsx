@@ -1,1 +1,3 @@
-export default function Page() { return <main>next-app-079</main>; }
+export default function Page() {
+  return <main>next-app-079</main>;
+}

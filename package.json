@@ -7,18 +7,12 @@
     "services/*"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
-    "verify:install": "node scripts/verify-focused-install.mjs",
+    "knip": "knip",
     "lint": "oxlint .",
-    "format": "oxfmt --check .",
-    "format:write": "oxfmt .",
-    "generate:scale": "node scripts/generate-scale-fixture.mjs 128",
-    "prepare": "lefthook install"
+    "oxfmt": "oxfmt --check ."
   },
   "devDependencies": {
-    "lefthook": "catalog:",
+    "knip": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "turbo": "catalog:",

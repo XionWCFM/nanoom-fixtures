@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
 const count = Number(process.argv[2] ?? 128);
-if (!Number.isInteger(count) || count < 100) throw new Error("workspace count must be at least 100");
+if (!Number.isInteger(count) || count < 100)
+  throw new Error("workspace count must be at least 100");
 
 for (let index = 0; index < count; index += 1) {
   const id = String(index).padStart(3, "0");
@@ -14,11 +15,23 @@ for (let index = 0; index < count; index += 1) {
         name: `@nanoom-scale/next-app-${id}`,
         version: "1.0.0",
         private: true,
-        scripts: { build: "next build" },
+        scripts: {
+          build: "next build",
+          test: "vitest run",
+          typecheck: "tsc --noEmit",
+        },
         dependencies: {
           next: "16.3.4",
-          react: "19.2.0",
-          "react-dom": "19.2.0",
+          react: "19.3.0",
+          "react-dom": "19.3.0",
+        },
+        devDependencies: {
+          "@types/node": "catalog:",
+          "@types/react": "catalog:",
+          "@types/react-dom": "catalog:",
+          typescript: "catalog:",
+          vite: "catalog:",
+          vitest: "catalog:",
         },
       },
       null,
@@ -33,11 +46,41 @@ for (let index = 0; index < count; index += 1) {
     new URL("app/page.tsx", root),
     `export default function Page() { return <main>next-app-${id}</main>; }\n`,
   );
-  await writeFile(new URL("next.config.ts", root), "import type { NextConfig } from 'next';\nexport default {} satisfies NextConfig;\n");
+  await writeFile(
+    new URL("app/smoke.test.ts", root),
+    `import { expect, test } from "vitest";\ntest("workspace identity", () => expect("next-app-${id}").toBe("next-app-${id}"));\n`,
+  );
+  await writeFile(
+    new URL("next.config.ts", root),
+    "import type { NextConfig } from 'next';\nexport default {} satisfies NextConfig;\n",
+  );
   await writeFile(
     new URL("tsconfig.json", root),
-    `${JSON.stringify({ compilerOptions: { jsx: "preserve", strict: true, noEmit: true }, include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"] }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        compilerOptions: {
+          allowJs: true,
+          esModuleInterop: true,
+          incremental: true,
+          isolatedModules: true,
+          jsx: "react-jsx",
+          lib: ["dom", "dom.iterable", "esnext"],
+          module: "esnext",
+          moduleResolution: "bundler",
+          noEmit: true,
+          plugins: [{ name: "next" }],
+          resolveJsonModule: true,
+          skipLibCheck: true,
+          strict: true,
+          target: "ES2017",
+        },
+        exclude: ["node_modules"],
+        include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+      },
+      null,
+      2,
+    )}\n`,
   );
 }
 
-console.log(`generated ${count} Next.js workspaces`);
+console.log(`generated ${count} Next.js workspaces with build, test, and typecheck`);

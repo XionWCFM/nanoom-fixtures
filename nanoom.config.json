@@ -16,7 +16,7 @@
       ]
     },
     "scale": {
-      "tasks": ["build"],
+      "tasks": ["build", "test", "typecheck"],
       "rules": [
         { "name": "@nanoom-fixture/app", "ignore": true },
         { "name": "@nanoom-fixture/core", "ignore": true },
