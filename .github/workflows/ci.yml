@@ -1,172 +1,63 @@
-name: scale fixture
+name: ci
 
 on:
   push:
-    branches: [codex/sparse-fixture-poc-20260910]
-  workflow_dispatch:
-    inputs:
-      baseline:
-        description: Run a full-history, full-worktree checkout for comparison
-        type: boolean
-        default: false
+    branches: [main]
 
 permissions:
   actions: read
   contents: read
 
-env:
-  NANOOM_REF: codex/sparse-fixture-poc-20260910
-
 jobs:
-  baseline:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - run: |
-          git count-objects -vH
-          du -sh .git .
-
-  nanoom:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: XionWCFM/nanoom
-          ref: ${{ env.NANOOM_REF }}
-      - run: cargo build --locked --release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nanoom-local-binary
-          path: target/release/nanoom
-
   affected:
-    needs: nanoom
     runs-on: ubuntu-latest
     outputs:
       groups: ${{ steps.calculate.outputs.groups }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
         with:
-          name: nanoom-local-binary
-          path: .nanoom-bin
-      - run: chmod +x .nanoom-bin/nanoom
-      - name: Partial clone manifest checkout
-        env:
-          REPOSITORY: ${{ github.repository }}
-          REF_NAME: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
-        run: |
-          git clone --filter=tree:0 --no-checkout --depth=1 --branch "$REF_NAME" "https://github.com/$REPOSITORY.git" repo
-          git -C repo sparse-checkout init --no-cone
-          printf '%s\n' \
-            /package.json \
-            /nanoom.config.json \
-            '/packages/*/package.json' \
-            '/tools/*/package.json' \
-            '/services/*/package.json' |
-            git -C repo sparse-checkout set --no-cone --stdin
-          git -C repo checkout --detach "$SHA"
-          test "$(find repo/services -name package.json | wc -l | tr -d ' ')" = 128
-          test ! -e repo/services/next-app-064/.scale-payload/blob.bin
-          git -C repo count-objects -vH
-          du -sh repo/.git
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /package.json
+            /nanoom.config.json
+            /services/*/package.json
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@codex/sparse-fixture-poc-20260910
-        env:
-          NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-bin/nanoom
-        with:
-          version: local
-          cwd: repo
-          base: 38341b8edab46d955458e6fc332ed5869f6ec181
-          head: ${{ github.sha }}
-          timingRunner: turbo
-      - name: Verify one changed workspace and checkout plan
-        env:
-          GROUPS: ${{ steps.calculate.outputs.groups }}
-        run: |
-          jq -e '
-            .scale.hasChange == true and
-            (.scale.matrix.include | length) == 3 and
-            ([.scale.matrix.include[].name] | unique) == ["@nanoom-scale/next-app-042"] and
-            ([.scale.matrix.include[].task] | sort) == ["build", "test", "typecheck"] and
-            ([.scale.matrix.include[].checkout.coneMode] | all) and
-            ([.scale.matrix.include[].checkout.sparseCheckout | contains("services/next-app-042")] | all) and
-            ([.scale.matrix.include[].checkout.sparseCheckout | contains("services/next-app-064")] | any | not)
-          ' <<< "$GROUPS"
+        uses: XionWCFM/nanoom/.github/actions/affected@latest
 
   run:
     needs: affected
     if: ${{ fromJSON(needs.affected.outputs.groups).scale.hasChange }}
     runs-on: ubuntu-latest
+    env:
+      NANOOM_WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.affected.outputs.groups).scale.matrix }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
         with:
-          name: nanoom-local-binary
-          path: .nanoom-bin
-      - run: chmod +x .nanoom-bin/nanoom
-      - name: Partial clone Nanoom checkout plan
-        env:
-          CHECKOUT: ${{ matrix.checkout.sparseCheckout }}
-          REPOSITORY: ${{ github.repository }}
-          REF_NAME: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
-          WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-        run: |
-          git clone --filter=tree:0 --no-checkout --depth=1 --branch "$REF_NAME" "https://github.com/$REPOSITORY.git" "$WORKDIR"
-          git -C "$WORKDIR" sparse-checkout init --cone
-          printf '%s\n' "$CHECKOUT" | git -C "$WORKDIR" sparse-checkout set --cone --stdin
-          git -C "$WORKDIR" checkout --detach "$SHA"
-          test -f "$WORKDIR/package.json"
-          test -f "$WORKDIR/yarn.lock"
-          test -d "$WORKDIR/services/next-app-042"
-          test ! -e "$WORKDIR/services/next-app-064/.scale-payload/blob.bin"
-          git -C "$WORKDIR" count-objects -vH
-          du -sh "$WORKDIR/.git"
+          path: ${{ env.NANOOM_WORKDIR }}
+          fetch-depth: 1
+          sparse-checkout-cone-mode: ${{ matrix.checkout.coneMode }}
+          sparse-checkout: ${{ matrix.checkout.sparseCheckout }}
       - run: corepack enable
-      - id: install
-        uses: XionWCFM/nanoom/.github/actions/install@codex/sparse-fixture-poc-20260910
-        env:
-          NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-bin/nanoom
+      - uses: XionWCFM/nanoom/.github/actions/install@latest
         with:
-          version: local
-          cwd: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-          packageManager: yarn
+          cwd: ${{ env.NANOOM_WORKDIR }}
           matrix: ${{ toJSON(matrix) }}
-      - id: task
-        uses: XionWCFM/nanoom/.github/actions/run@codex/sparse-fixture-poc-20260910
-        env:
-          NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-bin/nanoom
+      - uses: XionWCFM/nanoom/.github/actions/run@latest
         with:
-          version: local
-          cwd: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-          packageManager: yarn
-          monorepoTool: turbo
+          cwd: ${{ env.NANOOM_WORKDIR }}
           matrix: ${{ toJSON(matrix) }}
           group: scale
           cleanupCheckout: true
-      - name: Verify task and cleanup
-        env:
-          RESULT: ${{ steps.task.outputs.result }}
-          WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-        run: |
-          jq -e '.status == "success" and ([.results[].cli.executions[] | .runner == "turbo"] | all)' <<< "$RESULT"
-          test ! -e "$WORKDIR"
 
   status:
     if: always()
-    needs: [nanoom, affected, run]
+    needs: [affected, run]
     runs-on: ubuntu-latest
     steps:
-      - id: result
-        uses: XionWCFM/nanoom/.github/actions/status@codex/sparse-fixture-poc-20260910
+      - uses: XionWCFM/nanoom/.github/actions/status@latest
         with:
           needs: ${{ toJSON(needs) }}
-      - env:
-          RESULT: ${{ steps.result.outputs.result }}
-        run: jq -e '.status == "success" and (.jobs | length) == 3' <<< "$RESULT"
