@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "tools/*"
+    "tools/*",
+    "services/*"
   ],
   "scripts": {
     "build": "turbo run build",
@@ -13,6 +14,7 @@
     "lint": "oxlint .",
     "format": "oxfmt --check .",
     "format:write": "oxfmt .",
+    "generate:scale": "node scripts/generate-scale-fixture.mjs 128",
     "prepare": "lefthook install"
   },
   "devDependencies": {
