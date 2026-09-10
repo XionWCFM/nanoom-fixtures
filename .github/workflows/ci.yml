@@ -1,155 +1,156 @@
-name: ci
+name: scale fixture
 
 on:
   push:
-    branches: [main, codex/fix-fixture-ci]
-  pull_request:
-  merge_group:
+    branches: [codex/sparse-fixture-poc-20260910]
+  workflow_dispatch:
 
 permissions:
   actions: read
   contents: read
 
+env:
+  NANOOM_REF: codex/sparse-fixture-poc-20260910
+
 jobs:
-  yarn-affected:
-    name: Yarn + Turbo affected
+  nanoom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: XionWCFM/nanoom
+          ref: ${{ env.NANOOM_REF }}
+      - run: cargo build --locked --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanoom-local-binary
+          path: target/release/nanoom
+
+  affected:
+    needs: nanoom
     runs-on: ubuntu-latest
     outputs:
       groups: ${{ steps.calculate.outputs.groups }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          fetch-depth: 100
-      - name: Create deterministic shared change
+          name: nanoom-local-binary
+          path: .nanoom-bin
+      - run: chmod +x .nanoom-bin/nanoom
+      - name: Partial clone manifest checkout
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
         run: |
-          git config user.email fixture@example.invalid
-          git config user.name nanoom-fixture
-          printf 'fixture change\n' > packages/shared/changed.txt
-          git add packages/shared/changed.txt
-          git commit -m 'fixture: change shared workspace'
+          git clone --filter=tree:0 --no-checkout --depth=1 --branch "$REF_NAME" "https://github.com/$REPOSITORY.git" repo
+          git -C repo sparse-checkout init --no-cone
+          printf '%s\n' \
+            /package.json \
+            /nanoom.config.json \
+            '/packages/*/package.json' \
+            '/tools/*/package.json' \
+            '/services/*/package.json' |
+            git -C repo sparse-checkout set --no-cone --stdin
+          git -C repo checkout --detach "$SHA"
+          test "$(find repo/services -name package.json | wc -l | tr -d ' ')" = 128
+          test ! -e repo/services/next-app-064/.scale-payload/blob.bin
+          git -C repo count-objects -vH
+          du -sh repo/.git
       - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.1
+        uses: XionWCFM/nanoom/.github/actions/affected@codex/sparse-fixture-poc-20260910
+        env:
+          NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-bin/nanoom
         with:
-          base: HEAD~1
-          head: HEAD
-          scheduler: artifact
+          version: local
+          cwd: repo
+          base: 38341b8edab46d955458e6fc332ed5869f6ec181
+          head: ${{ github.sha }}
           timingRunner: turbo
-          historyArtifactName: nanoom-timing-history
-      - env:
-          RESULT: ${{ steps.calculate.outputs.result }}
-        run: jq -e '.scheduling.timingRunner == "turbo" and (.scheduling.historyStatus == "loaded" or .scheduling.historyStatus == "fallback") and .affected.group.ci.distribution.concurrency == 2' <<< "$RESULT"
+      - name: Verify one changed workspace and checkout plan
+        env:
+          GROUPS: ${{ steps.calculate.outputs.groups }}
+        run: |
+          jq -e '
+            .scale.hasChange == true and
+            (.scale.matrix.include | length) == 3 and
+            ([.scale.matrix.include[].name] | unique) == ["@nanoom-scale/next-app-042"] and
+            ([.scale.matrix.include[].task] | sort) == ["build", "test", "typecheck"] and
+            ([.scale.matrix.include[].checkout.coneMode] | all) and
+            ([.scale.matrix.include[].checkout.sparseCheckout | contains("services/next-app-042")] | all) and
+            ([.scale.matrix.include[].checkout.sparseCheckout | contains("services/next-app-064")] | any | not)
+          ' <<< "$GROUPS"
 
-  yarn-run:
-    name: Yarn + Turbo (${{ matrix.assignmentId }})
-    needs: yarn-affected
-    if: ${{ fromJSON(needs.yarn-affected.outputs.groups).ci.hasChange }}
+  run:
+    needs: affected
+    if: ${{ fromJSON(needs.affected.outputs.groups).scale.hasChange }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.yarn-affected.outputs.groups).ci.matrix }}
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).scale.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nanoom-local-binary
+          path: .nanoom-bin
+      - run: chmod +x .nanoom-bin/nanoom
+      - name: Partial clone Nanoom checkout plan
+        env:
+          CHECKOUT: ${{ matrix.checkout.sparseCheckout }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
+        run: |
+          git clone --filter=tree:0 --no-checkout --depth=1 --branch "$REF_NAME" "https://github.com/$REPOSITORY.git" "$WORKDIR"
+          git -C "$WORKDIR" sparse-checkout init --cone
+          printf '%s\n' "$CHECKOUT" | git -C "$WORKDIR" sparse-checkout set --cone --stdin
+          git -C "$WORKDIR" checkout --detach "$SHA"
+          test -f "$WORKDIR/package.json"
+          test -f "$WORKDIR/yarn.lock"
+          test -d "$WORKDIR/services/next-app-042"
+          test ! -e "$WORKDIR/services/next-app-064/.scale-payload/blob.bin"
+          git -C "$WORKDIR" count-objects -vH
+          du -sh "$WORKDIR/.git"
       - run: corepack enable
       - id: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.3.1
+        uses: XionWCFM/nanoom/.github/actions/install@codex/sparse-fixture-poc-20260910
+        env:
+          NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-bin/nanoom
         with:
+          version: local
+          cwd: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
           packageManager: yarn
           matrix: ${{ toJSON(matrix) }}
-      - name: Verify multi-workspace focused install
-        run: while IFS= read -r name; do yarn verify:install "$name"; done < <(jq -r '[.items[].name] | unique[]' <<< '${{ toJSON(matrix) }}')
       - id: task
-        uses: XionWCFM/nanoom/.github/actions/run@v0.3.1
+        uses: XionWCFM/nanoom/.github/actions/run@codex/sparse-fixture-poc-20260910
+        env:
+          NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-bin/nanoom
         with:
+          version: local
+          cwd: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
           packageManager: yarn
           monorepoTool: turbo
           matrix: ${{ toJSON(matrix) }}
-          group: ci
-          scheduler: artifact
-      - env:
+          group: scale
+          cleanupCheckout: true
+      - name: Verify task and cleanup
+        env:
           RESULT: ${{ steps.task.outputs.result }}
-        run: jq -e '.status == "success" and ([.results[].cli.executions[] | .runner == "turbo" and .durationMs >= 0] | all)' <<< "$RESULT"
-
-  pnpm-affected:
-    name: pnpm + Nx affected
-    runs-on: ubuntu-latest
-    outputs:
-      groups: ${{ steps.calculate.outputs.groups }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 100
-      - run: bash fixtures/pnpm-nx/setup.sh
-      - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.3.1
-        with:
-          cwd: .pnpm-nx-fixture
-          base: main
-          head: HEAD
-          scheduler: artifact
-          timingRunner: nx
-          historyArtifactName: nanoom-timing-history
-      - env:
-          RESULT: ${{ steps.calculate.outputs.result }}
-        run: jq -e '.scheduling.timingRunner == "nx" and .affected.group.nx.distribution.concurrency == 2' <<< "$RESULT"
-
-  pnpm-run:
-    name: pnpm + Nx (${{ matrix.assignmentId }})
-    needs: pnpm-affected
-    if: ${{ fromJSON(needs.pnpm-affected.outputs.groups).nx.hasChange }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.pnpm-affected.outputs.groups).nx.matrix }}
-    steps:
-      - uses: actions/checkout@v4
-      - run: corepack enable
-      - run: bash fixtures/pnpm-nx/setup.sh
-      - id: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.3.1
-        with:
-          cwd: .pnpm-nx-fixture
-          packageManager: pnpm
-          matrix: ${{ toJSON(matrix) }}
-      - name: Verify multi-workspace focused install
-        working-directory: .pnpm-nx-fixture
-        run: node verify-install.mjs '${{ toJSON(matrix) }}'
-      - id: task
-        uses: XionWCFM/nanoom/.github/actions/run@v0.3.1
-        with:
-          cwd: .pnpm-nx-fixture
-          packageManager: pnpm
-          monorepoTool: nx
-          matrix: ${{ toJSON(matrix) }}
-          group: nx
-          scheduler: artifact
-      - env:
-          RESULT: ${{ steps.task.outputs.result }}
-        run: jq -e '.status == "success" and ([.results[].cli.executions[] | .runner == "nx" and .durationMs >= 0] | all)' <<< "$RESULT"
-
-  history:
-    name: timing history
-    needs: [yarn-run, pnpm-run]
-    runs-on: ubuntu-latest
-    steps:
-      - id: merge
-        uses: XionWCFM/nanoom/.github/actions/history@v0.3.1
-        with:
-          scheduler: artifact
-          historyArtifactName: nanoom-timing-history
-      - env:
-          RESULT: ${{ steps.merge.outputs.result }}
-        run: jq -e '.status == "success" and .cli.sampleCount >= 7 and .cli.inputCount >= 4 and .uploadMs >= 0' <<< "$RESULT"
+          WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
+        run: |
+          jq -e '.status == "success" and ([.results[].cli.executions[] | .runner == "turbo"] | all)' <<< "$RESULT"
+          test ! -e "$WORKDIR"
 
   status:
-    name: status
     if: always()
-    needs: [yarn-affected, yarn-run, pnpm-affected, pnpm-run, history]
+    needs: [nanoom, affected, run]
     runs-on: ubuntu-latest
     steps:
       - id: result
-        uses: XionWCFM/nanoom/.github/actions/status@v0.3.1
+        uses: XionWCFM/nanoom/.github/actions/status@codex/sparse-fixture-poc-20260910
         with:
           needs: ${{ toJSON(needs) }}
       - env:
           RESULT: ${{ steps.result.outputs.result }}
-        run: jq -e '.status == "success" and (.jobs | length) == 5' <<< "$RESULT"
+        run: jq -e '.status == "success" and (.jobs | length) == 3' <<< "$RESULT"
