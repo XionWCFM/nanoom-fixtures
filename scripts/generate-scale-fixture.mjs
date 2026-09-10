@@ -55,6 +55,10 @@ for (let index = 0; index < count; index += 1) {
     "import type { NextConfig } from 'next';\nexport default {} satisfies NextConfig;\n",
   );
   await writeFile(
+    new URL("next-env.d.ts", root),
+    '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\nimport "./.next/types/routes.d.ts";\n',
+  );
+  await writeFile(
     new URL("tsconfig.json", root),
     `${JSON.stringify(
       {

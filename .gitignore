@@ -3,6 +3,7 @@ node_modules/
 .turbo/
 .nx/
 .next/
+*.tsbuildinfo
 .pnpm-nx-fixture*/
 .vite/
 dist/
