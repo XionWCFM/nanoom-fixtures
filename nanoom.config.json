@@ -12,5 +12,5 @@
       }
     }
   },
-  "globalDependencies": ["yarn.lock", "turbo.json", "nanoom.config.json"]
+  "globalDependencies": ["yarn.lock", "turbo.json", "nanoom.config.json", "full-run.marker"]
 }
