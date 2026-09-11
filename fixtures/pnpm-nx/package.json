@@ -1,0 +1,8 @@
+{
+  "name": "pnpm-nx-fixture",
+  "private": true,
+  "devDependencies": {
+    "nx": "23.1.2"
+  },
+  "packageManager": "pnpm@10.12.4"
+}

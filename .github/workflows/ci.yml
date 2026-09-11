@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
-  merge_group:
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -14,47 +14,53 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       groups: ${{ steps.calculate.outputs.groups }}
-
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 100
-      - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@v0.2.8
-
-  run:
-    name: run
-    needs: affected
-    if: ${{ fromJSON(needs.affected.outputs.groups).ci.hasChange }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.affected.outputs.groups).ci.matrix }}
-
-    steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /package.json
+            /nanoom.config.json
+            /services/*/package.json
+      - id: calculate
+        uses: XionWCFM/nanoom/.github/actions/affected@latest
+        with:
+          base: 4f844674e80bd570ee167688cd82af0e5f4840ce
 
+  run:
+    needs: affected
+    if: ${{ fromJSON(needs.affected.outputs.groups).scale.hasChange }}
+    runs-on: ubuntu-latest
+    env:
+      NANOOM_WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).scale.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: ${{ env.NANOOM_WORKDIR }}
+          fetch-depth: 1
+          sparse-checkout-cone-mode: ${{ matrix.checkout.coneMode }}
+          sparse-checkout: ${{ matrix.checkout.sparseCheckout }}
       - run: corepack enable
-      
-      - name: install
-        uses: XionWCFM/nanoom/.github/actions/install@v0.2.8
+      - uses: XionWCFM/nanoom/.github/actions/install@latest
         with:
+          cwd: ${{ env.NANOOM_WORKDIR }}
           matrix: ${{ toJSON(matrix) }}
-
-      - name: run
-        uses: XionWCFM/nanoom/.github/actions/run@v0.2.8
+      - uses: XionWCFM/nanoom/.github/actions/run@latest
         with:
+          cwd: ${{ env.NANOOM_WORKDIR }}
           matrix: ${{ toJSON(matrix) }}
+          group: scale
+          cleanupCheckout: true
 
   status:
-    name: status
     if: always()
     needs: [affected, run]
     runs-on: ubuntu-latest
     steps:
-      - name: result
-        uses: XionWCFM/nanoom/.github/actions/status@v0.2.8
+      - uses: XionWCFM/nanoom/.github/actions/status@latest
         with:
           needs: ${{ toJSON(needs) }}

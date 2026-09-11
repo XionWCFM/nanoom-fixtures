@@ -1,0 +1,8 @@
+{
+  "name": "@pnpm-nx/shared",
+  "version": "1.0.0",
+  "main": "index.cjs",
+  "scripts": {
+    "test": "node test.cjs"
+  }
+}

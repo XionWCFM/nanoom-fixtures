@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/XionWCFM/nanoom/main/nanoom.schema.json",
+  "group": {
+    "nx": {
+      "tasks": ["test"],
+      "distribution": {
+        "small": { "maxAffectedPercent": 25, "concurrency": 1 },
+        "medium": { "maxAffectedPercent": 60, "concurrency": 2 },
+        "full": { "maxAffectedPercent": 100, "concurrency": 2 }
+      },
+      "rules": [{ "name": "@pnpm-nx/unrelated", "ignore": true }]
+    }
+  },
+  "globalDependencies": ["pnpm-lock.yaml", "nx.json", "nanoom.config.json"]
+}

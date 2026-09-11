@@ -1,13 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/XionWCFM/nanoom/main/nanoom.schema.json",
+  "workspace": { "include": ["services/*"] },
+  "affected": { "maxFetchDepth": 32768 },
   "group": {
-    "ci": {
-      "tasks": ["test"],
-      "rules": [
-        { "name": "@nanoom-fixture/core", "shard": [{ "task": "test", "shard": 2 }] },
-        { "name": "@nanoom-fixture/app", "isolate": ["test"] },
-        { "name": "@nanoom-fixture/unrelated", "ignore": true }
-      ]
+    "scale": {
+      "tasks": ["build", "test", "typecheck"],
+      "distribution": {
+        "small": { "maxAffectedPercent": 10, "concurrency": 3 },
+        "medium": { "maxAffectedPercent": 50, "concurrency": 12 },
+        "full": { "maxAffectedPercent": 100, "concurrency": 24 }
+      }
     }
   },
   "globalDependencies": ["yarn.lock", "turbo.json", "nanoom.config.json"]

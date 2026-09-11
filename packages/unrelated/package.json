@@ -1,5 +1,10 @@
 {
   "name": "@nanoom-fixture/unrelated",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "build": "node -e \"JSON.parse(require('node:fs').readFileSync('package.json', 'utf8'))\"",
+    "test": "node -e \"JSON.parse(require('node:fs').readFileSync('package.json', 'utf8'))\"",
+    "typecheck": "node -e \"JSON.parse(require('node:fs').readFileSync('package.json', 'utf8'))\""
+  }
 }

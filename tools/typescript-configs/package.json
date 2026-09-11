@@ -6,5 +6,10 @@
     "base.json",
     "app.json",
     "node.json"
-  ]
+  ],
+  "scripts": {
+    "build": "node -e \"for (const file of ['base.json', 'app.json', 'node.json']) JSON.parse(require('node:fs').readFileSync(file, 'utf8'))\"",
+    "test": "node -e \"for (const file of ['base.json', 'app.json', 'node.json']) JSON.parse(require('node:fs').readFileSync(file, 'utf8'))\"",
+    "typecheck": "node -e \"for (const file of ['base.json', 'app.json', 'node.json']) JSON.parse(require('node:fs').readFileSync(file, 'utf8'))\""
+  }
 }
