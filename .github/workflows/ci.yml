@@ -3,6 +3,7 @@ name: ci
 on:
   push:
     branches: [main]
+  pull_request:
 
 permissions:
   actions: read
@@ -24,6 +25,8 @@ jobs:
             /services/*/package.json
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@latest
+        with:
+          base: 4f844674e80bd570ee167688cd82af0e5f4840ce
 
   run:
     needs: affected
