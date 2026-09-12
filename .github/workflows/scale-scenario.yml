@@ -1,0 +1,133 @@
+name: scale scenario
+
+on:
+  workflow_call:
+    inputs:
+      scenario:
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  affected:
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.calculate.outputs.groups }}
+      result: ${{ steps.calculate.outputs.result }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - id: change
+        name: Create deterministic ${{ inputs.scenario }} change
+        env:
+          SCENARIO: ${{ inputs.scenario }}
+        run: |
+          base=$(git rev-parse HEAD)
+          node scripts/scale-scenario.mjs "$SCENARIO" --apply | tee scenario.json
+          git -c user.name=nanoom-fixture -c user.email=nanoom-fixture@users.noreply.github.com add services
+          git -c user.name=nanoom-fixture -c user.email=nanoom-fixture@users.noreply.github.com commit -m "fixture: $SCENARIO scale scenario"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - id: calculate
+        uses: XionWCFM/nanoom/.github/actions/affected@latest
+        with:
+          base: ${{ steps.change.outputs.base }}
+          head: ${{ steps.change.outputs.head }}
+          historyArtifactName: nanoom-timing-history-${{ inputs.scenario }}
+      - name: Summarize plan
+        env:
+          RESULT: ${{ steps.calculate.outputs.result }}
+        run: |
+          {
+            echo "### ${{ inputs.scenario }} plan"
+            echo
+            jq -r '"tier=\(.affected.group.scale.distribution.name) affected=\(.affected.group.scale.affectedWorkspaces) assignments=\(.groups.scale.assignmentCount) history=\(.scheduling.historyStatus) sourceRun=\(.scheduling.historySourceRunId // \"none\") prediction=exact:\(.scheduling.predictionSources.exact),group:\(.scheduling.predictionSources.group),cold:\(.scheduling.predictionSources.cold),samples:\(.scheduling.predictionSources.sampleCount) checkout=total:\(.scheduling.totalCheckoutPathCount),unique:\(.scheduling.uniqueCheckoutPathCount),duplicated:\(.scheduling.duplicatedCheckoutPathCount) historyDownloadMs=\(.scheduling.historyDownloadMs)"' <<< "$RESULT"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  run:
+    needs: affected
+    if: ${{ fromJSON(needs.affected.outputs.groups).scale.hasChange }}
+    runs-on: ubuntu-latest
+    env:
+      NANOOM_WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.scenario }}-${{ strategy.job-index }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).scale.matrix }}
+    steps:
+      - id: clock
+        run: echo "job=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
+      - id: checkout-clock
+        run: echo "start=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          path: ${{ env.NANOOM_WORKDIR }}
+          fetch-depth: 1
+          sparse-checkout-cone-mode: ${{ matrix.checkout.coneMode }}
+          sparse-checkout: ${{ matrix.checkout.sparseCheckout }}
+      - id: checkout-time
+        env:
+          START: ${{ steps.checkout-clock.outputs.start }}
+        run: echo "ms=$(( $(date +%s%3N) - START ))" >> "$GITHUB_OUTPUT"
+      - run: corepack enable
+      - id: install
+        uses: XionWCFM/nanoom/.github/actions/install@latest
+        with:
+          cwd: ${{ env.NANOOM_WORKDIR }}
+          matrix: ${{ toJSON(matrix) }}
+      - id: task
+        uses: XionWCFM/nanoom/.github/actions/run@latest
+        with:
+          cwd: ${{ env.NANOOM_WORKDIR }}
+          matrix: ${{ toJSON(matrix) }}
+          group: scale
+          cleanupCheckout: true
+      - name: Summarize assignment timing
+        if: always()
+        env:
+          INSTALL: ${{ steps.install.outputs.result }}
+          TASK: ${{ steps.task.outputs.result }}
+          JOB_START: ${{ steps.clock.outputs.job }}
+          CHECKOUT_MS: ${{ steps.checkout-time.outputs.ms }}
+        run: |
+          install_ms=$(jq -r '(.elapsedSeconds // 0) * 1000' <<< "${INSTALL:-{}}")
+          run_ms=$(jq -r '(.elapsedSeconds // 0) * 1000' <<< "${TASK:-{}}")
+          predicted=$(jq -r '.matrix.predictedDurationMs // 0' <<< "${TASK:-{}}")
+          echo "${{ inputs.scenario }} assignment=${{ matrix.assignmentId }} predictedMs=$predicted checkoutMs=${CHECKOUT_MS:-0} installMs=$install_ms runMs=$run_ms jobMs=$(( $(date +%s%3N) - JOB_START ))" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  history:
+    needs: [affected, run]
+    if: ${{ needs.run.result == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.history.outputs.result }}
+    steps:
+      - id: history
+        uses: XionWCFM/nanoom/.github/actions/history@latest
+        with:
+          historyArtifactName: nanoom-timing-history-${{ inputs.scenario }}
+      - name: Summarize measured makespan
+        env:
+          RESULT: ${{ steps.history.outputs.result }}
+        run: |
+          {
+            echo "### ${{ inputs.scenario }} measured result"
+            echo
+            jq -r '"historySourceRun=\(.historySourceRunId // \"none\") assignments=\(.current.assignmentCount) predictedMakespanMs=\(.current.predictedMakespanMs) actualTaskMakespanMs=\(.current.actualTaskMakespanMs) checkoutPathTotal=\(.current.totalCheckoutPathCount) mergeMs=\(.mergeMs) uploadMs=\(.uploadMs)"' <<< "$RESULT"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  status:
+    if: always()
+    needs: [affected, run, history]
+    runs-on: ubuntu-latest
+    steps:
+      - id: status
+        uses: XionWCFM/nanoom/.github/actions/status@latest
+        with:
+          needs: ${{ toJSON(needs) }}
+      - env:
+          RESULT: ${{ steps.status.outputs.result }}
+        run: echo "${{ inputs.scenario }} aggregate=$(jq -c . <<< \"$RESULT\")" | tee -a "$GITHUB_STEP_SUMMARY"

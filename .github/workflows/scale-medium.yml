@@ -1,0 +1,13 @@
+name: medium scale
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  scenario:
+    uses: ./.github/workflows/scale-scenario.yml
+    with:
+      scenario: medium
