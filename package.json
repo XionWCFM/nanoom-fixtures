@@ -7,9 +7,12 @@
     "services/*"
   ],
   "scripts": {
+    "build": "turbo build",
+    "format": "oxfmt --check .",
     "knip": "knip",
     "lint": "oxlint .",
-    "oxfmt": "oxfmt --check ."
+    "oxfmt": "oxfmt --check .",
+    "typecheck": "turbo typecheck"
   },
   "devDependencies": {
     "knip": "catalog:",

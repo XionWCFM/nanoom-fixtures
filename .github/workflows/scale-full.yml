@@ -1,0 +1,17 @@
+name: full scale
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  scenario:
+    uses: ./.github/workflows/scale-scenario.yml
+    with:
+      scenario: full

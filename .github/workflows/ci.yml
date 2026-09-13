@@ -4,61 +4,23 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   actions: read
   contents: read
 
 jobs:
-  affected:
-    runs-on: ubuntu-latest
-    outputs:
-      groups: ${{ steps.calculate.outputs.groups }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 1
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /package.json
-            /nanoom.config.json
-            /services/*/package.json
-      - id: calculate
-        uses: XionWCFM/nanoom/.github/actions/affected@latest
-
-  run:
-    needs: affected
-    if: ${{ fromJSON(needs.affected.outputs.groups).scale.hasChange }}
-    runs-on: ubuntu-latest
-    env:
-      NANOOM_WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.affected.outputs.groups).scale.matrix }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          path: ${{ env.NANOOM_WORKDIR }}
-          fetch-depth: 1
-          sparse-checkout-cone-mode: ${{ matrix.checkout.coneMode }}
-          sparse-checkout: ${{ matrix.checkout.sparseCheckout }}
-      - run: corepack enable
-      - uses: XionWCFM/nanoom/.github/actions/install@latest
-        with:
-          cwd: ${{ env.NANOOM_WORKDIR }}
-          matrix: ${{ toJSON(matrix) }}
-      - uses: XionWCFM/nanoom/.github/actions/run@latest
-        with:
-          cwd: ${{ env.NANOOM_WORKDIR }}
-          matrix: ${{ toJSON(matrix) }}
-          group: scale
-          cleanupCheckout: true
+  scenario:
+    uses: ./.github/workflows/scale-scenario.yml
+    with:
+      scenario: small
 
   status:
     if: always()
-    needs: [affected, run]
+    needs: scenario
     runs-on: ubuntu-latest
     steps:
-      - uses: XionWCFM/nanoom/.github/actions/status@latest
-        with:
-          needs: ${{ toJSON(needs) }}
+      - env:
+          RESULT: ${{ needs.scenario.result }}
+        run: test "$RESULT" = success
