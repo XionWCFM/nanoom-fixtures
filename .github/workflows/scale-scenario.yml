@@ -45,7 +45,7 @@ jobs:
           {
             echo "### ${{ inputs.scenario }} plan"
             echo
-            jq -r '"tier=\(.affected.group.scale.distribution.name) affected=\(.affected.group.scale.affectedWorkspaces) assignments=\(.groups.scale.assignmentCount) history=\(.scheduling.historyStatus) sourceRun=\(.scheduling.historySourceRunId // \"none\") prediction=exact:\(.scheduling.predictionSources.exact),group:\(.scheduling.predictionSources.group),cold:\(.scheduling.predictionSources.cold),samples:\(.scheduling.predictionSources.sampleCount) checkout=total:\(.scheduling.totalCheckoutPathCount),unique:\(.scheduling.uniqueCheckoutPathCount),duplicated:\(.scheduling.duplicatedCheckoutPathCount) historyDownloadMs=\(.scheduling.historyDownloadMs)"' <<< "$RESULT"
+            jq -c '{tier:.affected.group.scale.distribution.name,affectedCount:.affected.group.scale.affectedWorkspaces,assignments:.groups.scale.assignmentCount,historyStatus:.scheduling.historyStatus,historySourceRunId:.scheduling.historySourceRunId,predictionSources:.scheduling.predictionSources,checkout:{total:.scheduling.totalCheckoutPathCount,unique:.scheduling.uniqueCheckoutPathCount,duplicated:.scheduling.duplicatedCheckoutPathCount},historyDownloadMs:.scheduling.historyDownloadMs}' <<< "$RESULT"
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
   run:
@@ -116,7 +116,7 @@ jobs:
           {
             echo "### ${{ inputs.scenario }} measured result"
             echo
-            jq -r '"historySourceRun=\(.historySourceRunId // \"none\") assignments=\(.current.assignmentCount) predictedMakespanMs=\(.current.predictedMakespanMs) actualTaskMakespanMs=\(.current.actualTaskMakespanMs) checkoutPathTotal=\(.current.totalCheckoutPathCount) mergeMs=\(.mergeMs) uploadMs=\(.uploadMs)"' <<< "$RESULT"
+            jq -c '{historySourceRunId,assignments:.current.assignmentCount,predictedMakespanMs:.current.predictedMakespanMs,actualTaskMakespanMs:.current.actualTaskMakespanMs,checkoutPathTotal:.current.totalCheckoutPathCount,mergeMs,uploadMs}' <<< "$RESULT"
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
   status:
@@ -127,7 +127,10 @@ jobs:
       - id: status
         uses: XionWCFM/nanoom/.github/actions/status@latest
         with:
-          needs: ${{ toJSON(needs) }}
+          results: |
+            affected=${{ needs.affected.result }}
+            run=${{ needs.run.result }}
+            history=${{ needs.history.result }}
       - env:
           RESULT: ${{ steps.status.outputs.result }}
         run: echo "${{ inputs.scenario }} aggregate=$(jq -c . <<< \"$RESULT\")" | tee -a "$GITHUB_STEP_SUMMARY"
