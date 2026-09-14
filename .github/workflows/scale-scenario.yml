@@ -146,4 +146,6 @@ jobs:
             history=${{ needs.history.result }}
       - env:
           RESULT: ${{ steps.status.outputs.result }}
-        run: echo "${{ inputs.scenario }} aggregate=$(jq -c . <<< \"$RESULT\")" | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          compact=$(jq -c . <<< "$RESULT")
+          echo "${{ inputs.scenario }} aggregate=$compact" | tee -a "$GITHUB_STEP_SUMMARY"
