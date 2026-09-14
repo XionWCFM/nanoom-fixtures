@@ -38,6 +38,19 @@ jobs:
           base: ${{ steps.change.outputs.base }}
           head: ${{ steps.change.outputs.head }}
           historyArtifactName: nanoom-timing-history-${{ inputs.scenario }}
+      - name: Assert released Nanoom identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repository=XionWCFM/nanoom
+          release_tag=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$repository/releases/latest" | jq -er '.tag_name | select(startswith("v"))')
+          release_commit=$(git ls-remote --exit-code "https://github.com/$repository.git" "refs/tags/${release_tag}^{}" | awk 'NR == 1 { print $1 }')
+          latest_commit=$(git ls-remote --exit-code "https://github.com/$repository.git" refs/tags/latest | awk 'NR == 1 { print $1 }')
+          test -n "$release_commit" -a "$release_commit" = "$latest_commit"
+          test "$(nanoom --version)" = "nanoom ${release_tag#v}"
+          echo "Nanoom $release_tag: $release_commit"
       - name: Summarize plan
         env:
           RESULT: ${{ steps.calculate.outputs.result }}
@@ -51,7 +64,7 @@ jobs:
   run:
     needs: affected
     if: ${{ fromJSON(needs.affected.outputs.groups).scale.hasChange }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runnerLabels || 'ubuntu-latest' }}
     env:
       NANOOM_WORKDIR: .nanoom/${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.scenario }}-${{ strategy.job-index }}
     strategy:

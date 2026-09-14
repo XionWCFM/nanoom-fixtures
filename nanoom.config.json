@@ -5,6 +5,7 @@
   "group": {
     "scale": {
       "tasks": ["build", "test", "typecheck"],
+      "runnerLabels": ["ubuntu-latest"],
       "distribution": {
         "small": { "maxAffectedPercent": 10, "concurrency": 3 },
         "medium": { "maxAffectedPercent": 50, "concurrency": 12 },
