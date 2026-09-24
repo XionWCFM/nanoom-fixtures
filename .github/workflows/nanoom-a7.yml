@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: XionWCFM/nanoom
-          ref: 333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+          ref: 93101dd28558682239a2930c87a7abae6f75afbd
           path: nanoom-source
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -66,7 +66,7 @@ jobs:
       - name: Build the exact producer candidate
         working-directory: nanoom-source
         run: |
-          test "$(git rev-parse HEAD)" = 333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+          test "$(git rev-parse HEAD)" = 93101dd28558682239a2930c87a7abae6f75afbd
           cargo build --locked --release --bin nanoom
           tar -czf "$RUNNER_TEMP/nanoom-linux.tar.gz" -C target/release nanoom
       - uses: actions/upload-artifact@v4.6.2
@@ -114,7 +114,7 @@ jobs:
       - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
       - run: corepack enable
       - id: affected
-        uses: XionWCFM/nanoom/.github/actions/affected@333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+        uses: XionWCFM/nanoom/.github/actions/affected@93101dd28558682239a2930c87a7abae6f75afbd
         with:
           version: local
           base: ${{ needs.control.outputs.base }}
@@ -186,7 +186,7 @@ jobs:
       - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
       - run: corepack enable
       - id: affected
-        uses: XionWCFM/nanoom/.github/actions/affected@333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+        uses: XionWCFM/nanoom/.github/actions/affected@93101dd28558682239a2930c87a7abae6f75afbd
         with:
           version: local
           config: nanoom.a7-pnpm-nx.config.json
@@ -268,14 +268,14 @@ jobs:
       - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
       - run: corepack enable
       - id: prepare
-        uses: XionWCFM/nanoom/.github/actions/prepare@333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+        uses: XionWCFM/nanoom/.github/actions/prepare@93101dd28558682239a2930c87a7abae6f75afbd
         with:
           version: local
           plan: ${{ matrix.plan }}
           group: ${{ matrix.group }}
           assignmentId: ${{ matrix.assignmentId }}
       - id: install
-        uses: XionWCFM/nanoom/.github/actions/install@333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+        uses: XionWCFM/nanoom/.github/actions/install@93101dd28558682239a2930c87a7abae6f75afbd
         with:
           version: local
           plan: ${{ matrix.plan }}
@@ -300,7 +300,7 @@ jobs:
             (cd "$PREPARED_CWD/fixtures/pnpm-nx" && node verify-install.mjs "$assignment")
           fi
       - id: task
-        uses: XionWCFM/nanoom/.github/actions/run@333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+        uses: XionWCFM/nanoom/.github/actions/run@93101dd28558682239a2930c87a7abae6f75afbd
         env:
           NANOOM_A7_FAIL: ${{ (needs.control.outputs.mode == 'task-failure' || (needs.control.outputs.mode == 'rerun' && github.run_attempt == 1)) && matrix.flavor == 'pnpm-nx' && '1' || '0' }}
         with:
@@ -334,7 +334,7 @@ jobs:
       - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
       - id: history
         if: needs.run.result == 'success' && needs.matrix.outputs.has_change == 'true'
-        uses: XionWCFM/nanoom/.github/actions/history@333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+        uses: XionWCFM/nanoom/.github/actions/history@93101dd28558682239a2930c87a7abae6f75afbd
         with:
           version: local
           scheduler: artifact
@@ -347,7 +347,7 @@ jobs:
         run: jq -e '.status == "success" and .publish == true and .cli.scopeCount > 0' <<< "$RESULT"
       - id: status
         if: always()
-        uses: XionWCFM/nanoom/.github/actions/status@333b8d2bec534b35843e0caa1a65cd020e6ab9a3
+        uses: XionWCFM/nanoom/.github/actions/status@93101dd28558682239a2930c87a7abae6f75afbd
         with:
           results: |
             affected-yarn=${{ needs.affected-yarn.result }}
