@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 1 || 0 }}
       - id: context
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'positive' }}
