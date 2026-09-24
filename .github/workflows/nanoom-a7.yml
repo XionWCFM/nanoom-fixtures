@@ -140,11 +140,13 @@ jobs:
           if [[ "$EVENT_NAME" == pull_request ]]; then
             if [[ "$MODE" == no-change ]]; then
               jq -e '.scheduling.historyStatus == "history_not_needed"' <<< "$RESULT"
-            elif [[ "$STAGE" == cold ]]; then
-              jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
-            else
-              jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
-              jq -e '[.scale.include[].predictionSources.sampleCount] | any(. > 0)' <<< "$GROUPS"
+            elif [[ "$MODE" == positive ]]; then
+              if [[ "$STAGE" == cold ]]; then
+                jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
+              else
+                jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
+                jq -e '[.scale.include[].predictionSources.sampleCount] | any(. > 0)' <<< "$GROUPS"
+              fi
             fi
           fi
 
@@ -213,11 +215,13 @@ jobs:
           if [[ "$EVENT_NAME" == pull_request ]]; then
             if [[ "$MODE" == no-change ]]; then
               jq -e '.scheduling.historyStatus == "history_not_needed"' <<< "$RESULT"
-            elif [[ "$STAGE" == cold ]]; then
-              jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
-            else
-              jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
-              jq -e '[.nx.include[].predictionSources.sampleCount] | any(. > 0)' <<< "$GROUPS"
+            elif [[ "$MODE" == positive ]]; then
+              if [[ "$STAGE" == cold ]]; then
+                jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
+              else
+                jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
+                jq -e '[.nx.include[].predictionSources.sampleCount] | any(. > 0)' <<< "$GROUPS"
+              fi
             fi
           fi
 
