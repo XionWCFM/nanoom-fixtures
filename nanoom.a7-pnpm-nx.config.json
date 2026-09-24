@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/XionWCFM/nanoom/main/nanoom.schema.json",
+  "workspace": { "include": ["fixtures/pnpm-nx/packages/*"] },
+  "affected": { "maxFetchDepth": 32768 },
+  "group": {
+    "nx": {
+      "tasks": ["test"],
+      "runnerLabels": ["ubuntu-latest"],
+      "distribution": {
+        "small": { "maxAffectedPercent": 25, "concurrency": 1 },
+        "medium": { "maxAffectedPercent": 60, "concurrency": 2 },
+        "full": { "maxAffectedPercent": 100, "concurrency": 2 }
+      },
+      "rules": [{ "name": "@pnpm-nx/unrelated", "ignore": true }]
+    }
+  },
+  "globalDependencies": [
+    "fixtures/pnpm-nx/pnpm-lock.yaml",
+    "fixtures/pnpm-nx/pnpm-workspace.yaml",
+    "fixtures/pnpm-nx/nx.json",
+    "fixtures/pnpm-nx/nanoom.config.json"
+  ]
+}
