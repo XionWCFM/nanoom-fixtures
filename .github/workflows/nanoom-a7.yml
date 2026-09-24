@@ -3,7 +3,7 @@ name: Nanoom A7 consumer E2E
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
     inputs:
       mode:
@@ -35,8 +35,12 @@ jobs:
         env:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'positive' }}
           EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set -euo pipefail
+          if [[ "$EVENT_NAME" == pull_request && "$PR_TITLE" =~ \[a7:(no-change|task-failure|unexpected-skip|rerun)\] ]]; then
+            MODE=${BASH_REMATCH[1]}
+          fi
           base=''
           if [[ "$MODE" == no-change ]]; then
             base=$GITHUB_SHA
@@ -134,7 +138,9 @@ jobs:
           jq -e --argjson expected "$expected" \
             '((.scale.include | length) > 0) == $expected' <<< "$GROUPS"
           if [[ "$EVENT_NAME" == pull_request ]]; then
-            if [[ "$STAGE" == cold ]]; then
+            if [[ "$MODE" == no-change ]]; then
+              jq -e '.scheduling.historyStatus == "history_not_needed"' <<< "$RESULT"
+            elif [[ "$STAGE" == cold ]]; then
               jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
             else
               jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
@@ -205,7 +211,9 @@ jobs:
           jq -e --argjson expected "$expected" \
             '((.nx.include | length) > 0) == $expected' <<< "$GROUPS"
           if [[ "$EVENT_NAME" == pull_request ]]; then
-            if [[ "$STAGE" == cold ]]; then
+            if [[ "$MODE" == no-change ]]; then
+              jq -e '.scheduling.historyStatus == "history_not_needed"' <<< "$RESULT"
+            elif [[ "$STAGE" == cold ]]; then
               jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
             else
               jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
