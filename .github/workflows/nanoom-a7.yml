@@ -120,7 +120,7 @@ jobs:
           base: ${{ needs.control.outputs.base }}
           scheduler: artifact
           historyBackend: artifact
-          historyArtifactName: nanoom-a7-prediction-v3-cwd
+          historyArtifactName: nanoom-a7-prediction-v3-93101dd
           timingRunner: turbo
           packageManager: yarn
       - name: Verify the positive matrix and cold/warm prediction
@@ -193,7 +193,7 @@ jobs:
           base: ${{ needs.control.outputs.base }}
           scheduler: artifact
           historyBackend: artifact
-          historyArtifactName: nanoom-a7-prediction-v3-cwd
+          historyArtifactName: nanoom-a7-prediction-v3-93101dd
           timingRunner: nx
           packageManager: pnpm
       - name: Verify the positive matrix and cold/warm prediction
@@ -339,7 +339,7 @@ jobs:
           version: local
           scheduler: artifact
           historyBackend: artifact
-          historyArtifactName: nanoom-a7-prediction-v3-cwd
+          historyArtifactName: nanoom-a7-prediction-v3-93101dd
       - id: verify-history
         if: always() && needs.run.result == 'success' && needs.matrix.outputs.has_change == 'true'
         env:
