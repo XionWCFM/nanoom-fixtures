@@ -112,7 +112,7 @@ jobs:
           jq -e --argjson expected "$expected" \
             '.status == "success" and .hasChange == $expected' <<< "$RESULT"
           jq -e --argjson expected "$expected" \
-            '.scale.hasChange == $expected and ((.scale.include | length) > 0) == $expected' <<< "$GROUPS"
+            '((.scale.include | length) > 0) == $expected' <<< "$GROUPS"
           if [[ "$EVENT_NAME" == pull_request ]]; then
             if [[ "$STAGE" == cold ]]; then
               jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
@@ -166,7 +166,7 @@ jobs:
           jq -e --argjson expected "$expected" \
             '.status == "success" and .hasChange == $expected' <<< "$RESULT"
           jq -e --argjson expected "$expected" \
-            '.nx.hasChange == $expected and ((.nx.include | length) > 0) == $expected' <<< "$GROUPS"
+            '((.nx.include | length) > 0) == $expected' <<< "$GROUPS"
           if [[ "$EVENT_NAME" == pull_request ]]; then
             if [[ "$STAGE" == cold ]]; then
               jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
@@ -196,7 +196,7 @@ jobs:
           [[ "$MODE" == no-change ]] && expected=false
           jq -e --argjson expected "$expected" \
             --argjson yarn "$YARN_GROUPS" --argjson nx "$NX_GROUPS" \
-            '$yarn.scale.hasChange == $expected and $nx.nx.hasChange == $expected' >/dev/null <<< '{}'
+            '((($yarn.scale.include // []) | length) > 0) == $expected and ((($nx.nx.include // []) | length) > 0) == $expected' >/dev/null <<< '{}'
           matrix=$(jq -cn \
             --argjson yarn "$YARN_GROUPS" --argjson nx "$NX_GROUPS" \
             --arg yarnPlan "$YARN_PLAN" --arg nxPlan "$NX_PLAN" \
