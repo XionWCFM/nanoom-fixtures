@@ -1,2 +1,8 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-test("workspace identity", () => expect("next-app-000").toBe("next-app-000"));
+
+const workspaceName = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+).name;
+
+test("workspace identity", () => expect(workspaceName).toBe("@nanoom-scale/next-app-000"));

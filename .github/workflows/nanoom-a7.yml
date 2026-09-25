@@ -1,0 +1,380 @@
+name: Nanoom A7 consumer E2E
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Consumer acceptance path to exercise
+        type: choice
+        required: true
+        default: positive
+        options: [positive, no-change, task-failure, unexpected-skip, rerun]
+      base:
+        description: Optional ancestor commit to compare against for a positive main replay
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.context.outputs.mode }}
+      base: ${{ steps.context.outputs.base }}
+      stage: ${{ steps.context.outputs.stage }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 1 || 0 }}
+          sparse-checkout: |
+            /docs/a7-history-stage.txt
+          sparse-checkout-cone-mode: false
+      - id: context
+        env:
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'positive' }}
+          DISPATCH_BASE: ${{ github.event_name == 'workflow_dispatch' && inputs.base || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == pull_request && "$PR_TITLE" =~ \[a7:(no-change|task-failure|unexpected-skip|rerun)\] ]]; then
+            MODE=${BASH_REMATCH[1]}
+          fi
+          base=''
+          if [[ "$MODE" == no-change ]]; then
+            base=$GITHUB_SHA
+          elif [[ "$EVENT_NAME" == workflow_dispatch && -n "$DISPATCH_BASE" ]]; then
+            [[ "$DISPATCH_BASE" =~ ^[0-9a-fA-F]{40}$ ]]
+            base=$(git rev-parse --verify "${DISPATCH_BASE}^{commit}")
+            git merge-base --is-ancestor "$base" "$GITHUB_SHA"
+          elif [[ "$EVENT_NAME" != pull_request ]]; then
+            base=$(git merge-base origin/main "$GITHUB_SHA")
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "stage=$(cat docs/a7-history-stage.txt)" >> "$GITHUB_OUTPUT"
+
+  build-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: XionWCFM/nanoom
+          ref: 2659fbabc46e077e9a1753f162b09a941a353979
+          path: nanoom-source
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: nanoom-source -> nanoom-source/target
+      - name: Build the exact producer candidate
+        working-directory: nanoom-source
+        run: |
+          test "$(git rev-parse HEAD)" = 2659fbabc46e077e9a1753f162b09a941a353979
+          cargo build --locked --release --bin nanoom
+          tar -czf "$RUNNER_TEMP/nanoom-linux.tar.gz" -C target/release nanoom
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: nanoom-a7-candidate
+          path: ${{ runner.temp }}/nanoom-linux.tar.gz
+          retention-days: 2
+          if-no-files-found: error
+
+  affected-yarn:
+    needs: [control, build-candidate]
+    runs-on: ubuntu-latest
+    outputs:
+      has_change: ${{ steps.affected.outputs.has_change }}
+      plan: ${{ steps.affected.outputs.plan }}
+      groups: ${{ steps.affected.outputs.groups }}
+      result: ${{ steps.affected.outputs.result }}
+    env:
+      NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-a7/nanoom
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          sparse-checkout: |
+            /package.json
+            /yarn.lock
+            /.yarnrc.yml
+            /turbo.json
+            /nanoom.config.json
+            /nanoom.a7-pnpm-nx.config.json
+            /services/*/package.json
+            /packages/*/package.json
+            /tools/*/package.json
+            /fixtures/pnpm-nx/package.json
+            /fixtures/pnpm-nx/pnpm-lock.yaml
+            /fixtures/pnpm-nx/pnpm-workspace.yaml
+            /fixtures/pnpm-nx/nx.json
+            /fixtures/pnpm-nx/nanoom.config.json
+            /fixtures/pnpm-nx/packages/*/package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: nanoom-a7-candidate
+          path: ${{ runner.temp }}/nanoom-download
+      - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
+      - run: corepack enable
+      - id: affected
+        uses: XionWCFM/nanoom/.github/actions/affected@2659fbabc46e077e9a1753f162b09a941a353979
+        with:
+          version: local
+          base: ${{ needs.control.outputs.base }}
+          scheduler: artifact
+          historyBackend: artifact
+          historyArtifactName: nanoom-a7-prediction-v3-0d29332
+          timingRunner: turbo
+          packageManager: yarn
+      - name: Verify the positive matrix and cold/warm prediction
+        env:
+          MODE: ${{ needs.control.outputs.mode }}
+          STAGE: ${{ needs.control.outputs.stage }}
+          EVENT_NAME: ${{ github.event_name }}
+          GROUPS: ${{ steps.affected.outputs.groups }}
+          RESULT: ${{ steps.affected.outputs.result }}
+        run: |
+          expected=true
+          [[ "$MODE" == no-change ]] && expected=false
+          jq -e --argjson expected "$expected" \
+            '.status == "success" and .hasChange == $expected' <<< "$RESULT"
+          jq -e --argjson expected "$expected" \
+            '((.scale.include | length) > 0) == $expected' <<< "$GROUPS"
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            if [[ "$MODE" == no-change ]]; then
+              jq -e '.scheduling.historyStatus == "history_not_needed"' <<< "$RESULT"
+            elif [[ "$MODE" == positive ]]; then
+              if [[ "$STAGE" == cold ]]; then
+                jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
+              else
+                jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
+                jq -e '[.scale.include[].predictionSources.sampleCount] | any(. > 0)' <<< "$GROUPS"
+              fi
+            fi
+          fi
+
+  affected-nx:
+    needs: [control, build-candidate]
+    runs-on: ubuntu-latest
+    outputs:
+      has_change: ${{ steps.affected.outputs.has_change }}
+      plan: ${{ steps.affected.outputs.plan }}
+      groups: ${{ steps.affected.outputs.groups }}
+      result: ${{ steps.affected.outputs.result }}
+    env:
+      NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-a7/nanoom
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          sparse-checkout: |
+            /package.json
+            /yarn.lock
+            /.yarnrc.yml
+            /turbo.json
+            /nanoom.config.json
+            /nanoom.a7-pnpm-nx.config.json
+            /services/*/package.json
+            /packages/*/package.json
+            /tools/*/package.json
+            /fixtures/pnpm-nx/package.json
+            /fixtures/pnpm-nx/pnpm-lock.yaml
+            /fixtures/pnpm-nx/pnpm-workspace.yaml
+            /fixtures/pnpm-nx/nx.json
+            /fixtures/pnpm-nx/nanoom.config.json
+            /fixtures/pnpm-nx/packages/*/package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: nanoom-a7-candidate
+          path: ${{ runner.temp }}/nanoom-download
+      - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
+      - run: corepack enable
+      - id: affected
+        uses: XionWCFM/nanoom/.github/actions/affected@2659fbabc46e077e9a1753f162b09a941a353979
+        with:
+          version: local
+          config: nanoom.a7-pnpm-nx.config.json
+          base: ${{ needs.control.outputs.base }}
+          scheduler: artifact
+          historyBackend: artifact
+          historyArtifactName: nanoom-a7-prediction-v3-0d29332
+          timingRunner: nx
+          packageManager: pnpm
+      - name: Verify the positive matrix and cold/warm prediction
+        env:
+          MODE: ${{ needs.control.outputs.mode }}
+          STAGE: ${{ needs.control.outputs.stage }}
+          EVENT_NAME: ${{ github.event_name }}
+          GROUPS: ${{ steps.affected.outputs.groups }}
+          RESULT: ${{ steps.affected.outputs.result }}
+        run: |
+          expected=true
+          [[ "$MODE" == no-change ]] && expected=false
+          jq -e --argjson expected "$expected" \
+            '.status == "success" and .hasChange == $expected' <<< "$RESULT"
+          jq -e --argjson expected "$expected" \
+            '((.nx.include | length) > 0) == $expected' <<< "$GROUPS"
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            if [[ "$MODE" == no-change ]]; then
+              jq -e '.scheduling.historyStatus == "history_not_needed"' <<< "$RESULT"
+            elif [[ "$MODE" == positive ]]; then
+              if [[ "$STAGE" == cold ]]; then
+                jq -e '.scheduling.historyStatus == "fallback"' <<< "$RESULT"
+              else
+                jq -e '.scheduling.historyStatus == "loaded"' <<< "$RESULT"
+                jq -e '[.nx.include[].predictionSources.sampleCount] | any(. > 0)' <<< "$GROUPS"
+              fi
+            fi
+          fi
+
+  matrix:
+    needs: [control, affected-yarn, affected-nx]
+    runs-on: ubuntu-latest
+    outputs:
+      has_change: ${{ steps.compose.outputs.has_change }}
+      matrix: ${{ steps.compose.outputs.matrix }}
+    steps:
+      - id: compose
+        env:
+          MODE: ${{ needs.control.outputs.mode }}
+          YARN_GROUPS: ${{ needs.affected-yarn.outputs.groups }}
+          YARN_PLAN: ${{ needs.affected-yarn.outputs.plan }}
+          NX_GROUPS: ${{ needs.affected-nx.outputs.groups }}
+          NX_PLAN: ${{ needs.affected-nx.outputs.plan }}
+        run: |
+          set -euo pipefail
+          expected=true
+          [[ "$MODE" == no-change ]] && expected=false
+          jq -e --argjson expected "$expected" \
+            --argjson yarn "$YARN_GROUPS" --argjson nx "$NX_GROUPS" \
+            '((($yarn.scale.include // []) | length) > 0) == $expected and ((($nx.nx.include // []) | length) > 0) == $expected' >/dev/null <<< '{}'
+          matrix=$(jq -cn \
+            --argjson yarn "$YARN_GROUPS" --argjson nx "$NX_GROUPS" \
+            --arg yarnPlan "$YARN_PLAN" --arg nxPlan "$NX_PLAN" \
+            '{include: ([($yarn.scale.include // [])[] | . + {flavor:"yarn-turbo",group:"scale",plan:$yarnPlan,cwdKind:"root",packageManager:"yarn",tool:"turbo"}] + [($nx.nx.include // [])[] | . + {flavor:"pnpm-nx",group:"nx",plan:$nxPlan,cwdKind:"pnpm-nx",packageManager:"pnpm",tool:"nx"}])}')
+          has_change=$(jq -r '(.include | length) > 0' <<< "$matrix")
+          echo "has_change=$has_change" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix" | jq -c .
+
+  run:
+    needs: [control, build-candidate, affected-yarn, affected-nx, matrix]
+    if: needs.matrix.outputs.has_change == 'true' && needs.control.outputs.mode != 'unexpected-skip'
+    runs-on: ${{ matrix.runnerLabels || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    env:
+      NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-a7/nanoom
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: nanoom-a7-candidate
+          path: ${{ runner.temp }}/nanoom-download
+      - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
+      - run: corepack enable
+      - id: prepare
+        uses: XionWCFM/nanoom/.github/actions/prepare@2659fbabc46e077e9a1753f162b09a941a353979
+        with:
+          version: local
+          plan: ${{ matrix.plan }}
+          group: ${{ matrix.group }}
+          assignmentId: ${{ matrix.assignmentId }}
+      - id: install
+        uses: XionWCFM/nanoom/.github/actions/install@2659fbabc46e077e9a1753f162b09a941a353979
+        with:
+          version: local
+          plan: ${{ matrix.plan }}
+          assignmentFile: ${{ steps.prepare.outputs.assignment-file }}
+          cwd: ${{ matrix.cwdKind == 'pnpm-nx' && format('{0}/fixtures/pnpm-nx', steps.prepare.outputs.cwd) || steps.prepare.outputs.cwd }}
+          packageManager: ${{ matrix.packageManager }}
+      - name: Verify focused root and dependency installation
+        env:
+          FLAVOR: ${{ matrix.flavor }}
+          INSTALL: ${{ steps.install.outputs.result }}
+          ASSIGNMENT_FILE: ${{ steps.prepare.outputs.assignment-file }}
+          PREPARED_CWD: ${{ steps.prepare.outputs.cwd }}
+        run: |
+          jq -e --arg id '${{ matrix.assignmentId }}' \
+            '.status == "success" and .assignment.assignmentId == $id and .cli.scope.dependencyClosure and .cli.scope.devDependencies' <<< "$INSTALL"
+          if [[ "$FLAVOR" == yarn-turbo ]]; then
+            test -x "$PREPARED_CWD/node_modules/.bin/turbo"
+            test -x "$PREPARED_CWD/node_modules/.bin/vitest"
+            node -e "for (const name of ['next','react','vitest']) require.resolve(name, {paths: ['$PREPARED_CWD/services/next-app-000']})"
+          else
+            assignment=$(jq -c '{items}' "$ASSIGNMENT_FILE")
+            (cd "$PREPARED_CWD/fixtures/pnpm-nx" && node verify-install.mjs "$assignment")
+          fi
+      - id: task
+        uses: XionWCFM/nanoom/.github/actions/run@2659fbabc46e077e9a1753f162b09a941a353979
+        env:
+          NANOOM_A7_FAIL: ${{ (needs.control.outputs.mode == 'task-failure' || (needs.control.outputs.mode == 'rerun' && github.run_attempt == 1)) && matrix.flavor == 'pnpm-nx' && '1' || '0' }}
+        with:
+          version: local
+          plan: ${{ matrix.plan }}
+          assignmentFile: ${{ steps.prepare.outputs.assignment-file }}
+          preparedAtMs: ${{ steps.prepare.outputs.prepared-at-ms }}
+          installResult: ${{ steps.install.outputs.result }}
+          cwd: ${{ matrix.cwdKind == 'pnpm-nx' && format('{0}/fixtures/pnpm-nx', steps.prepare.outputs.cwd) || steps.prepare.outputs.cwd }}
+          group: ${{ matrix.group }}
+          packageManager: ${{ matrix.packageManager }}
+          monorepoTool: ${{ matrix.tool }}
+          scheduler: artifact
+          cleanupCheckout: 'true'
+      - name: Verify every planned item executed
+        env:
+          TASK: ${{ steps.task.outputs.result }}
+        run: jq -e '.status == "success" and .plannedItemCount > 0 and .executedItemCount == .plannedItemCount' <<< "$TASK"
+
+  finish:
+    if: always()
+    needs: [control, affected-yarn, affected-nx, matrix, run]
+    runs-on: ubuntu-latest
+    env:
+      NANOOM_LOCAL_BINARY: ${{ github.workspace }}/.nanoom-a7/nanoom
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: nanoom-a7-candidate
+          path: ${{ runner.temp }}/nanoom-download
+      - run: mkdir -p "$(dirname "$NANOOM_LOCAL_BINARY")" && tar -xzf "$RUNNER_TEMP/nanoom-download/nanoom-linux.tar.gz" -C "$(dirname "$NANOOM_LOCAL_BINARY")" && chmod +x "$NANOOM_LOCAL_BINARY" && echo "$(dirname "$NANOOM_LOCAL_BINARY")" >> "$GITHUB_PATH"
+      - id: history
+        if: needs.run.result == 'success' && needs.matrix.outputs.has_change == 'true'
+        uses: XionWCFM/nanoom/.github/actions/history@2659fbabc46e077e9a1753f162b09a941a353979
+        with:
+          version: local
+          scheduler: artifact
+          historyBackend: artifact
+          historyArtifactName: nanoom-a7-prediction-v3-0d29332
+      - id: verify-history
+        if: always() && needs.run.result == 'success' && needs.matrix.outputs.has_change == 'true'
+        env:
+          RESULT: ${{ steps.history.outputs.result }}
+        run: jq -e '.status == "success" and .publish == true and .cli.scopeCount > 0' <<< "$RESULT"
+      - id: status
+        if: always()
+        uses: XionWCFM/nanoom/.github/actions/status@2659fbabc46e077e9a1753f162b09a941a353979
+        with:
+          results: |
+            affected-yarn=${{ needs.affected-yarn.result }}
+            affected-nx=${{ needs.affected-nx.result }}
+            matrix=${{ needs.matrix.result }}
+            run=${{ needs.run.result }}
+            history=${{ steps.verify-history.outcome || 'skipped' }}
+          requiredJobs: ${{ needs.matrix.outputs.has_change == 'true' && needs.run.result == 'success' && '["run","history"]' || needs.matrix.outputs.has_change == 'true' && '["run"]' || '[]' }}
+      - name: Verify aggregate result
+        if: always()
+        env:
+          MODE: ${{ needs.control.outputs.mode }}
+          EXPECTED: ${{ (needs.control.outputs.mode == 'task-failure' || needs.control.outputs.mode == 'unexpected-skip') && 'failure' || 'success' }}
+          RESULT: ${{ steps.status.outputs.result }}
+        run: |
+          jq -e --arg expected "$EXPECTED" '.status == $expected and (.jobs | length) == 5' <<< "$RESULT"
