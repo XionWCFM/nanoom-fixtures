@@ -2,7 +2,7 @@ name: three-job demo
 
 on:
   push:
-    branches: [codex/three-job-demo-results]
+    branches: [codex/three-job-demo-results-v2]
     paths-ignore:
       - .github/workflows/three-job-demo.yml
 
@@ -20,6 +20,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /package.json
+            /nanoom.config.json
+            /turbo.json
+            /yarn.lock
+            /.yarnrc.yml
+            /services/*/package.json
       - id: calculate
         uses: XionWCFM/nanoom/.github/actions/affected@latest
         with:
@@ -44,8 +52,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          sparse-checkout: ${{ matrix.checkout.sparseCheckout }}
-          sparse-checkout-cone-mode: ${{ matrix.checkout.coneMode }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ${{ matrix.checkout.sparseCheckout }}
+            !**/.scale-payload/
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
