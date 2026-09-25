@@ -1,0 +1,83 @@
+name: three-job demo
+
+on:
+  push:
+    branches: [codex/three-job-demo-results]
+    paths-ignore:
+      - .github/workflows/three-job-demo.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  affected:
+    runs-on: ubuntu-latest
+    outputs:
+      has_change: ${{ steps.calculate.outputs.has_change }}
+      groups: ${{ steps.calculate.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: calculate
+        uses: XionWCFM/nanoom/.github/actions/affected@latest
+        with:
+          base: ${{ github.event.before }}
+          head: ${{ github.sha }}
+      - name: Show the affected plan
+        env:
+          CASE: ${{ github.event.head_commit.message }}
+          RESULT: ${{ steps.calculate.outputs.result }}
+        run: |
+          echo "### $CASE" >> "$GITHUB_STEP_SUMMARY"
+          jq -c '{affectedWorkspaces:.affected.group.scale.affectedWorkspaces,assignments:.groups.scale.assignmentCount,distribution:.affected.group.scale.distribution.name}' <<< "$RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  run:
+    needs: affected
+    if: needs.affected.outputs.has_change == 'true'
+    runs-on: ${{ matrix.runnerLabels || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).scale.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: ${{ matrix.checkout.sparseCheckout }}
+          sparse-checkout-cone-mode: ${{ matrix.checkout.coneMode }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - uses: XionWCFM/nanoom/.github/actions/install@latest
+        with:
+          matrix: ${{ toJSON(matrix) }}
+          packageManager: yarn
+      - uses: XionWCFM/nanoom/.github/actions/run@latest
+        with:
+          matrix: ${{ toJSON(matrix) }}
+          group: scale
+          packageManager: yarn
+
+  status:
+    if: always()
+    needs: [affected, run]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish runtime history
+        if: needs.affected.outputs.has_change == 'true' && needs.run.result == 'success'
+        continue-on-error: true
+        uses: XionWCFM/nanoom/.github/actions/history@latest
+      - name: Aggregate workflow result
+        if: always()
+        uses: XionWCFM/nanoom/.github/actions/status@latest
+        with:
+          results: |
+            affected=${{ needs.affected.result }}
+            run=${{ needs.run.result }}
+      - name: Require matrix execution when work is affected
+        if: needs.affected.outputs.has_change == 'true' && needs.run.result != 'success'
+        run: |
+          echo "::error::Affected work exists but the run matrix did not succeed."
+          exit 1
