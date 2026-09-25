@@ -54,6 +54,11 @@ jobs:
           fetch-depth: 1
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            /package.json
+            /nanoom.config.json
+            /turbo.json
+            /yarn.lock
+            /.yarnrc.yml
             ${{ matrix.checkout.sparseCheckout }}
             !**/.scale-payload/
       - uses: actions/setup-node@v4
