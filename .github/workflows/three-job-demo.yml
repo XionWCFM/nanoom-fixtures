@@ -1,0 +1,160 @@
+name: three-job demo
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - .github/workflows/three-job-demo.yml
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Affected change count to exercise
+        required: true
+        type: choice
+        options: [single, none, full]
+        default: single
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  affected:
+    runs-on: ubuntu-latest
+    outputs:
+      has_change: ${{ steps.calculate.outputs.has_change }}
+      groups: ${{ steps.calculate.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /package.json
+            /nanoom.config.json
+            /turbo.json
+            /yarn.lock
+            /.yarnrc.yml
+            /services/*/package.json
+            /services/*/app/page.tsx
+      - id: change
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          SCENARIO: ${{ inputs.scenario }}
+        run: |
+          set -euo pipefail
+          base=$(git rev-parse HEAD)
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            case "$SCENARIO" in
+              single) files=(services/next-app-000/app/page.tsx) ;;
+              none) files=() ;;
+              full)
+                mapfile -t files < <(git ls-files 'services/next-app-*/app/page.tsx')
+                [[ ${#files[@]} -eq 128 ]]
+                ;;
+              *) echo "Unknown scenario: $SCENARIO" >&2; exit 1 ;;
+            esac
+            for file in "${files[@]}"; do
+              printf '\n// nanoom three-job demo %s\n' "$GITHUB_RUN_ID" >> "$file"
+            done
+            if [[ ${#files[@]} -gt 0 ]]; then
+              git add -- "${files[@]}"
+              git -c user.name=nanoom-fixture -c user.email=nanoom-fixture@users.noreply.github.com commit -m "fixture: $SCENARIO affected demo"
+            fi
+            head=$(git rev-parse HEAD)
+          else
+            base=$EVENT_BEFORE
+            head=$GITHUB_SHA
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+      - id: calculate
+        uses: XionWCFM/nanoom/.github/actions/affected@latest
+        with:
+          base: ${{ steps.change.outputs.base }}
+          head: ${{ steps.change.outputs.head }}
+      - name: Summarize affected work
+        env:
+          RESULT: ${{ steps.calculate.outputs.result }}
+        run: |
+          {
+            echo '### Affected plan'
+            jq -c '{affectedWorkspaces:.affected.group.scale.affectedWorkspaces,assignments:.groups.scale.assignmentCount,distribution:.affected.group.scale.distribution.name}' <<< "$RESULT"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  run:
+    needs: affected
+    if: needs.affected.outputs.has_change == 'true'
+    runs-on: ${{ matrix.runnerLabels || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.affected.outputs.groups).scale.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /package.json
+            /nanoom.config.json
+            /turbo.json
+            /yarn.lock
+            /.yarnrc.yml
+            ${{ matrix.checkout.sparseCheckout }}
+            !**/.scale-payload/
+      - name: Recreate the dispatched source change
+        if: github.event_name == 'workflow_dispatch' && inputs.scenario != 'none'
+        env:
+          SCENARIO: ${{ inputs.scenario }}
+        run: |
+          set -euo pipefail
+          if [[ "$SCENARIO" == single ]]; then
+            files=(services/next-app-000/app/page.tsx)
+          else
+            mapfile -t files < <(find services -path '*/app/page.tsx' -type f | sort)
+          fi
+          for file in "${files[@]}"; do
+            printf '\n// nanoom three-job demo %s\n' "$GITHUB_RUN_ID" >> "$file"
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - uses: XionWCFM/nanoom/.github/actions/install@latest
+        with:
+          matrix: ${{ toJSON(matrix) }}
+          packageManager: yarn
+      - uses: XionWCFM/nanoom/.github/actions/run@latest
+        with:
+          matrix: ${{ toJSON(matrix) }}
+          group: scale
+          packageManager: yarn
+
+  status:
+    if: always()
+    needs: [affected, run]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish runtime history
+        if: needs.affected.outputs.has_change == 'true' && needs.run.result == 'success'
+        continue-on-error: true
+        uses: XionWCFM/nanoom/.github/actions/history@latest
+      - id: aggregate
+        uses: XionWCFM/nanoom/.github/actions/status@latest
+        with:
+          results: |
+            affected=${{ needs.affected.result }}
+            run=${{ needs.run.result }}
+      - name: Require matrix execution when work is affected
+        if: needs.affected.outputs.has_change == 'true' && needs.run.result != 'success'
+        run: |
+          echo '::error::Affected work exists but the run matrix did not succeed.'
+          exit 1
+      - name: Summarize aggregate status
+        if: always()
+        env:
+          RESULT: ${{ steps.aggregate.outputs.result }}
+        run: |
+          echo "Aggregate: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
