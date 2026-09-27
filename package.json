@@ -1,27 +1,8 @@
 {
-  "name": "nanoom-fixtures",
+  "name": "pnpm-nx-fixture",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "tools/*",
-    "services/*"
-  ],
-  "scripts": {
-    "build": "turbo build",
-    "format": "oxfmt --check .",
-    "knip": "knip",
-    "lint": "oxlint .",
-    "oxfmt": "oxfmt --check .",
-    "typecheck": "turbo typecheck"
-  },
   "devDependencies": {
-    "knip": "catalog:",
-    "oxfmt": "catalog:",
-    "oxlint": "catalog:",
-    "turbo": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "nx": "23.1.2"
   },
-  "packageManager": "yarn@4.11.0"
+  "packageManager": "pnpm@10.12.4"
 }
