@@ -1,26 +1,81 @@
-name: ci
+name: CI
 
 on:
+  pull_request:
+  merge_group:
   push:
     branches: [main]
-  pull_request:
-  workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
+  actions: read
 
 jobs:
-  scenario:
-    uses: ./.github/workflows/scale-scenario.yml
-    with:
-      scenario: small
+  affected:
+    name: Plan affected work
+    runs-on: ubuntu-latest
+    outputs:
+      has_change: ${{ steps.affected.outputs.has_change }}
+      plan: ${{ steps.affected.outputs.plan }}
+      matrix: ${{ steps.affected.outputs.matrix }}
+    steps:
+      - name: Checkout workspace manifests
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            **/package.json
+      - name: Plan affected work
+        id: affected
+        uses: XionWCFM/nanoom/.github/actions/affected@latest
+
+  run:
+    name: ${{ matrix.displayName }}
+    needs: affected
+    if: needs.affected.outputs.has_change == 'true'
+    runs-on: ${{ matrix.runnerLabels || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.affected.outputs.matrix) }}
+    steps:
+      - name: Checkout planned source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.checkout.ref }}
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: ${{ matrix.checkout.sparseCheckout }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Focus install planned workspaces
+        id: install
+        uses: XionWCFM/nanoom/.github/actions/install@latest
+        with:
+          plan: ${{ needs.affected.outputs.plan }}
+          group: ${{ matrix.group }}
+          assignmentId: ${{ matrix.assignmentId }}
+
+      - name: Run planned work
+        uses: XionWCFM/nanoom/.github/actions/run@latest
+        with:
+          plan: ${{ needs.affected.outputs.plan }}
+          assignmentFile: ${{ steps.install.outputs.assignment-file }}
+          installResult: ${{ steps.install.outputs.result }}
 
   status:
+    name: CI status
     if: always()
-    needs: scenario
+    needs: [affected, run]
     runs-on: ubuntu-latest
     steps:
-      - env:
-          RESULT: ${{ needs.scenario.result }}
-        run: test "$RESULT" = success
+      - name: Publish history and check CI results
+        uses: XionWCFM/nanoom/.github/actions/status@latest
+        with:
+          needs: ${{ toJSON(needs) }}
