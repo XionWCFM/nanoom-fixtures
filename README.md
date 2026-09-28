@@ -2,7 +2,7 @@
 
 최신 공개 Nanoom Action을 실제 소비자 경로에서 검증하는 Yarn + Turbo 저장소입니다.
 128개 Next.js service의 변경을 계획하고, Plan의 소스 SHA와 sparse checkout,
-focused install, 실제 build/test/typecheck, aggregate status를 확인합니다.
+focused install, 실제 build/test/typecheck·포맷·lint, aggregate status를 확인합니다.
 
 운영 CI는 `affected → run → status`로 구성합니다. run은 공식 checkout →
 Node 설정 → Nanoom focused install → Nanoom run의 네 단계입니다.

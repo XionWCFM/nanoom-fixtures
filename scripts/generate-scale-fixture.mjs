@@ -18,6 +18,8 @@ for (let index = 0; index < count; index += 1) {
         scripts: {
           build: "next build",
           test: "vitest run",
+          "format:check": "yarn run -T oxfmt --check .",
+          lint: "yarn run -T oxlint .",
           typecheck: "next typegen && tsc --noEmit",
         },
         dependencies: {

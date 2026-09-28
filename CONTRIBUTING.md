@@ -51,3 +51,6 @@ Knip의 root `next` 예외는 공통 `tsconfig.next.json`의 Next plugin 이름�
 
 포맷 명령은 workflow를 수정하지 않습니다. workflow는 AGENTS.md의
 승인 절차와 CI 계약 검증으로 따로 검토합니다.
+
+service의 format:check와 lint는 Yarn의 `run -T`로 루트 도구를 재사용합니다.
+공개 CI도 이를 Plan의 작업으로 실행하므로 별도 workflow나 helper가 필요하지 않습니다.
