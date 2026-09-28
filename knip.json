@@ -4,8 +4,10 @@
     "services/*": {
       "entry": ["app/**/*.{ts,tsx}"],
       "project": ["**/*.{ts,tsx}"]
+    },
+    ".": {
+      "ignoreUnresolved": ["next"]
     }
   },
-  "ignore": ["fixtures/pnpm-nx/**", "scripts/*.mjs"],
-  "ignoreDependencies": ["turbo"]
+  "ignore": ["fixtures/pnpm-nx/**", "scripts/*.mjs"]
 }

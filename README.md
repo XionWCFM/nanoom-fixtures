@@ -1,30 +1,21 @@
 # nanoom-fixtures
 
-Nanoom의 released Action을 실제 소비자 관점에서 검증하는 monorepo fixture다.
-루트의 Yarn Berry + Turborepo와 `fixtures/pnpm-nx`의 pnpm + Nx를 함께 실행한다.
+최신 공개 Nanoom Action을 실제 소비자 경로에서 검증하는 Yarn + Turbo 저장소입니다.
+128개 Next.js service의 변경을 계획하고, Plan의 소스 SHA와 sparse checkout,
+focused install, 실제 build/test/typecheck, aggregate status를 확인합니다.
 
-The repository intentionally keeps the workspace scripts small and observable:
-each test writes a result file and prints its shard context.
+운영 CI는 `affected → run → status`로 구성합니다. run은 공식 checkout →
+Node 설정 → Nanoom focused install → Nanoom run의 네 단계입니다.
+양성 변경은 모든 계획된 assignment를 실행하며, 변경 없음은 run을 정상 생략합니다.
 
-Hosted workflow는 affected assignment, 여러 workspace의 focused install,
-실제 Turbo/Nx task 실행, 성공 실행시간 sample, artifact history 병합, needs-only
-aggregate status를 각각 확인한다.
+개발 환경 설치와 로컬 검사 명령은 [기여 가이드](CONTRIBUTING.md)에 있습니다.
+Next.js TypeScript 옵션은 `tsconfig.next.json`, 패키지 버전은 `.yarnrc.yml`의
+catalog를 사용합니다. 실제 workspace의 Vite/Vitest 도구는 각 package에 선언합니다.
 
-Yarn 경로는 checkout 뒤 `packages/shared/changed.txt`를 커밋해 실제 shared
-변경을 만들고, 그 커밋을 기준으로 Turbo affected matrix를 실행한다.
+## 별도 검증 fixture
 
-128-service scale fixture는 다음 명령으로 변경 계획을 한 줄 JSON으로 확인한다.
-
-```bash
-node scripts/scale-scenario.mjs small
-node scripts/scale-scenario.mjs medium
-node scripts/scale-scenario.mjs full
-```
-
-각 시나리오는 12/64/128 workspace와 concurrency 3/12/24를 고정한다. CI만
-`--apply`를 사용해 임시 비교 commit을 만들며, 일반 실행은 파일을 바꾸지 않는다.
-small, medium, full은 서로 다른 workflow run에서 실행되어 timing sample과
-history가 섞이지 않는다. Actions 화면에서 각 workflow를 개별 재실행할 수 있다.
-
-로컬 commit hook의 `format`, `typecheck`, `build`는 각각 oxfmt와 Turbo의
-동일 이름 task를 실행한다.
+- `packages/*`: 내부 dependency closure와 focused install을 검증하는 작은 fixture.
+- `fixtures/pnpm-nx`: pnpm + Nx의 실제 설치·실행 fixture.
+- `scripts/generate-scale-fixture.mjs`: Next service 생성 규칙.
+- `scripts/scale-scenario.mjs`: small/medium/full 변경 계획. 기본 실행은 파일을 바꾸지 않습니다.
+- [공개 v0.7.7 실행 증거](docs/validation/v0.7.7-released-path.md).

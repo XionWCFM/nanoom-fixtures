@@ -1,3 +1,3 @@
 {
-  "ignorePatterns": ["services/*/.scale-payload/**"]
+  "ignorePatterns": ["services/*/.scale-payload/**", ".github/workflows/**"]
 }
