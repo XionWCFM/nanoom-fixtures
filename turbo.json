@@ -3,7 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "test": {
       "dependsOn": ["^build"],
@@ -13,6 +13,16 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "@nanoom-fixture/unrelated#build": {
+      "outputs": []
+    },
+    "format:check": {
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
     }
-  }
+  },
+  "globalDependencies": ["tsconfig.next.json", ".oxfmtrc.json", ".oxlintrc.json"]
 }

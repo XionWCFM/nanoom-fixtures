@@ -1,17 +1,38 @@
 {
   "$schema": "https://raw.githubusercontent.com/XionWCFM/nanoom/main/nanoom.schema.json",
-  "workspace": { "include": ["services/*"] },
-  "affected": { "maxFetchDepth": 32768 },
+  "workspace": {
+    "include": ["services/*"]
+  },
+  "affected": {
+    "maxFetchDepth": 32768
+  },
   "group": {
     "scale": {
-      "tasks": ["build", "test", "typecheck"],
+      "tasks": ["build", "test", "typecheck", "format:check", "lint"],
       "runnerLabels": ["ubuntu-latest"],
       "distribution": {
-        "small": { "maxAffectedPercent": 10, "concurrency": 3 },
-        "medium": { "maxAffectedPercent": 50, "concurrency": 12 },
-        "full": { "maxAffectedPercent": 100, "concurrency": 24 }
+        "small": {
+          "maxAffectedPercent": 10,
+          "concurrency": 3
+        },
+        "medium": {
+          "maxAffectedPercent": 50,
+          "concurrency": 12
+        },
+        "full": {
+          "maxAffectedPercent": 100,
+          "concurrency": 24
+        }
       }
     }
   },
-  "globalDependencies": ["yarn.lock", "turbo.json", "nanoom.config.json"]
+  "globalDependencies": [
+    "yarn.lock",
+    "turbo.json",
+    "nanoom.config.json",
+    "tsconfig.next.json",
+    ".oxfmtrc.json",
+    ".oxlintrc.json",
+    ".yarnrc.yml"
+  ]
 }

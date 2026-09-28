@@ -18,12 +18,14 @@ for (let index = 0; index < count; index += 1) {
         scripts: {
           build: "next build",
           test: "vitest run",
-          typecheck: "tsc --noEmit",
+          "format:check": "yarn run -T oxfmt --check .",
+          lint: "yarn run -T oxlint .",
+          typecheck: "next typegen && tsc --noEmit",
         },
         dependencies: {
-          next: "16.3.4",
-          react: "19.3.0",
-          "react-dom": "19.3.0",
+          next: "catalog:",
+          react: "catalog:",
+          "react-dom": "catalog:",
         },
         devDependencies: {
           "@types/node": "catalog:",
@@ -55,29 +57,10 @@ for (let index = 0; index < count; index += 1) {
     "import type { NextConfig } from 'next';\nexport default {} satisfies NextConfig;\n",
   );
   await writeFile(
-    new URL("next-env.d.ts", root),
-    '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\nimport "./.next/types/routes.d.ts";\n',
-  );
-  await writeFile(
     new URL("tsconfig.json", root),
     `${JSON.stringify(
       {
-        compilerOptions: {
-          allowJs: true,
-          esModuleInterop: true,
-          incremental: true,
-          isolatedModules: true,
-          jsx: "react-jsx",
-          lib: ["dom", "dom.iterable", "esnext"],
-          module: "esnext",
-          moduleResolution: "bundler",
-          noEmit: true,
-          plugins: [{ name: "next" }],
-          resolveJsonModule: true,
-          skipLibCheck: true,
-          strict: true,
-          target: "ES2017",
-        },
+        extends: "../../tsconfig.next.json",
         exclude: ["node_modules"],
         include: ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
       },

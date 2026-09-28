@@ -1,14 +1,10 @@
+lefthook: mise exec -- yarn exec lefthook
+
 pre-commit:
   commands:
-    lint:
-      run: mise exec -- yarn lint
-      priority: 1
     format:
-      run: mise exec -- yarn format
-      priority: 2
-    typecheck:
-      run: mise exec -- yarn typecheck
-      priority: 3
-    build:
-      run: mise exec -- yarn build
-      priority: 4
+      glob: "*.{js,cjs,mjs,jsx,ts,tsx,json,jsonc,yml,yaml,md,css}"
+      run: mise exec -- yarn exec oxfmt --check --no-error-on-unmatched-pattern {staged_files}
+    lint:
+      glob: "*.{js,cjs,mjs,jsx,ts,tsx}"
+      run: mise exec -- yarn exec oxlint {staged_files}

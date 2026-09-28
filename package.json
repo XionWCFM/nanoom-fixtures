@@ -8,20 +8,22 @@
   ],
   "scripts": {
     "build": "turbo build",
-    "format": "oxfmt --check .",
+    "format": "oxfmt --write .",
     "knip": "knip",
     "lint": "oxlint .",
-    "oxfmt": "oxfmt --check .",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "prepare": "lefthook install",
+    "format:check": "oxfmt --check .",
+    "test": "turbo test",
+    "check": "yarn format:check && yarn lint && yarn knip && yarn typecheck && yarn test && yarn build"
   },
   "devDependencies": {
     "knip": "catalog:",
+    "lefthook": "2.1.14",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "turbo": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   },
   "packageManager": "yarn@4.11.0"
 }
