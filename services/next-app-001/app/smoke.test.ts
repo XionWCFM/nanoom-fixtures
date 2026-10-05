@@ -1,2 +1,7 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
-test("workspace identity", () => expect("next-app-001").toBe("next-app-001"));
+import Page from "./page";
+
+test("renders the workspace identity", () => {
+  expect(renderToStaticMarkup(Page())).toBe("<main>next-app-001</main>");
+});
