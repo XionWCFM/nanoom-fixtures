@@ -1,6 +1,6 @@
 # 다음 실행시간 이력의 released consumer 검증
 
-상태: 검증 준비 중. 운영 CI는 기존 affected → checkout/Node/install/run → status와 공개 `@latest`를 사용한다. 이 문서는 검증 기록이며 workflow에 assertion이나 source-tree Action을 추가하지 않는다.
+상태: 공개 v0.9.0의 연속 실행과 환경별 학습·다음 Plan 반영을 검증했다. 운영 CI는 기존 affected → checkout/Node/install/run → status와 공개 `@latest`를 사용한다. 이 문서는 검증 기록이며 workflow에 assertion이나 source-tree Action을 추가하지 않는다.
 
 입력은 128개 실제 Next.js workspace의 build/test/typecheck/format:check/lint 640개 작업이다. build cache를 Turbo 설정에 명시한다. 루트 turbo.json은 Nanoom global dependency이므로 이 PR은 전체 workspace의 양성 실행을 검증한다. 제품이 계산한 matrix checkout과 focused install을 그대로 사용한다.
 
@@ -36,6 +36,18 @@ history는 작업 640개와 준비 시간 24개의 관측을 받아들였고 거
 
 작업 실측 합계는 2,079.574초, assignment WAPE는 23.84%, 예측 task makespan은 96.044초, 실측은 149.095초였다. 첫 실행의 WAPE 25.69%보다 낮지만 makespan은 늘었다. CPU 분포와 외부 준비 비용이 달라진 실제 CI 두 번의 결과이며 일반적인 성능 개선을 증명하지 않는다.
 
-Xeon Platinum 8370C가 추가로 관측돼 누적 profile은 6개였다. history는 추가 관측 664개를 받아들였고 거부된 measurement·degraded scope가 없었다. 각 profile의 모든 entry에 최근 batch 요약이 존재했으며, 228개 profile entry는 최근 batch가 두 개 이상이었다. 450개 key가 여러 profile의 prediction table에 존재했다. 이 숫자는 task·group fallback·preparation key를 포함하며 작업 450개라는 뜻이 아니다. pool은 694 rows, 전체 model JSON은 386,445 bytes, prediction JSON은 266,808 bytes였다.
+Xeon Platinum 8370C가 추가로 관측돼 누적 profile은 6개였다. history는 추가 관측 664개를 받아들였고 거부된 measurement·degraded scope가 없었다. 각 profile의 모든 entry에 최근 batch 요약이 존재했으며, 226개 profile entry는 최근 batch가 두 개 이상이었다. 450개 key가 여러 profile의 prediction table에 존재했다. 이 숫자는 task·group fallback·preparation key를 포함하며 작업 450개라는 뜻이 아니다. pool은 694 rows, 전체 model JSON은 386,445 bytes, prediction JSON은 266,808 bytes였다.
 
 이 기록 이후 새 실행의 Plan에서 누적 prediction을 읽고 `environmentUncertainty`의 작업 수·최소/최대 작업 비용을 보존하는지 검증한다. 해당 범위는 여러 profile에서 관측한 작업 비용이며 전체 assignment wall time의 신뢰구간이 아니다.
+
+## 누적 profile 비용 범위를 사용한 실행
+
+[37349596782](https://github.com/XionWCFM/nanoom-fixtures/actions/runs/37349596782)의 Plan은 이전 run `37348388715`의 prediction을 1.27초에 읽었다. 640개 작업 중 444개가 여러 profile의 비용 범위를 가졌고, 24개 assignment 모두 `environmentUncertainty`를 보존했다. 해당 작업들의 최소 비용 합계는 1,263.564초, 최대는 1,788.290초였다. 전체 작업 예측 합계는 2,188.569초다.
+
+24 assignment·640개 작업과 aggregate status가 모두 성공했다. Plan/measurement의 작업 identity가 누락·중복 없이 대응했다. 실측 작업 합계는 2,168.966초, assignment WAPE는 18.48%, task makespan 예측은 91.505초 / 실측은 145.096초였다. 첫 실행부터 WAPE는 25.69% → 23.84% → 18.48%였지만, 실제 task makespan은 132.563초 → 149.095초 → 145.096초였다. 표본 3회의 runner 분포·네트워크 조건이 다르므로 일반적인 속도 개선을 주장하지 않는다.
+
+세 번째 측정에서도 6개 CPU profile을 관측했고 모든 fingerprint를 독립 SHA-256과 대조했다. 게시된 model/prediction에 6개 profile이 모두 보존됐다. profile entries 1,467개에는 최근 batch 요약이 1~3개씩 존재했다. pool은 718 rows, 전체 model JSON은 469,136 bytes, prediction JSON은 300,466 bytes였다. model과 prediction은 각각 16/8 MiB 한도 안에 있다.
+
+전체 CI 완료 시간은 초기 큐 대기를 포함해 619초 → 441초 → 609초였고 status 잡은 28초 → 14초 → 21초였다. 세 번째 실행의 가장 오래 걸린 checkout은 455초였다. task 비용의 정확도와 외부 준비 비용을 포함한 wall time은 별도 지표다. status의 수집·학습·게시를 별도 workflow로 분리하는 변경은 이 검증에서 수행하지 않았다.
+
+제품 수용 증거는 이 3회 실행에서 기록했다. 이후 문서 정리 커밋에서도 기존 공개 템플릿의 CI를 그대로 실행하며 이 숫자를 새 실행의 결과로 바꾸지 않는다.
