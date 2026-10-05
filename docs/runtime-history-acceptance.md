@@ -2,7 +2,7 @@
 
 상태: 공개 v0.9.0의 연속 실행과 환경별 학습·다음 Plan 반영을 검증했다. 운영 CI는 기존 affected → checkout/Node/install/run → status와 공개 `@latest`를 사용한다. 이 문서는 검증 기록이며 workflow에 assertion이나 source-tree Action을 추가하지 않는다.
 
-입력은 128개 실제 Next.js workspace의 build/test/typecheck/format:check/lint 640개 작업이다. build cache를 Turbo 설정에 명시한다. 루트 turbo.json은 Nanoom global dependency이므로 이 PR은 전체 workspace의 양성 실행을 검증한다. 제품이 계산한 matrix checkout과 focused install을 그대로 사용한다.
+입력은 128개 실제 Next.js workspace의 build/test/typecheck/format:check/lint 640개 작업이다. 검증 중 build cache의 기본값인 `true`를 루트 Turbo 설정에 명시해 global dependency의 양성 변경으로 전체 workspace를 실행했다. 최종 변경에서는 이 중복 설정을 제거했다. Turbo 2.10.11의 실제 dry-run에서 133개 build 작업의 `resolvedTaskDefinition.cache`가 모두 `true`인 것을 확인해 동작이 같음을 검증했다. 제품이 계산한 matrix checkout과 focused install을 그대로 사용했다.
 
 검증은 다음 증거를 각각 기록한다.
 
@@ -50,4 +50,4 @@ Xeon Platinum 8370C가 추가로 관측돼 누적 profile은 6개였다. history
 
 전체 CI 완료 시간은 초기 큐 대기를 포함해 619초 → 441초 → 609초였고 status 잡은 28초 → 14초 → 21초였다. 세 번째 실행의 가장 오래 걸린 checkout은 455초였다. task 비용의 정확도와 외부 준비 비용을 포함한 wall time은 별도 지표다. status의 수집·학습·게시를 별도 workflow로 분리하는 변경은 이 검증에서 수행하지 않았다.
 
-제품 수용 증거는 이 3회 실행에서 기록했다. 이후 문서 정리 커밋에서도 기존 공개 템플릿의 CI를 그대로 실행하며 이 숫자를 새 실행의 결과로 바꾸지 않는다.
+제품 수용 증거는 이 3회 실행에서 기록했다. 이후 문서 정리 커밋에서도 기존 공개 템플릿의 CI를 그대로 실행하며 이 숫자를 새 실행의 결과로 바꾸지 않는다. 중복 cache 설정을 제거한 최종 PR diff는 이 문서뿐이다. 이 최종 커밋에서는 변경 없음의 정상 run 생략과 aggregate status 성공을 별도로 확인한다.
