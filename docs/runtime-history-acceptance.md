@@ -29,3 +29,13 @@ Nanoom v0.9.0의 소스는 `f900c08350d647ff53562e367ebdfce22053ad09`다. 5개 �
 history는 작업 640개와 준비 시간 24개의 관측을 받아들였고 거부된 measurement와 degraded scope가 없었다. 게시된 model과 prediction의 PR #33 scope 모두 같은 5개 profile을 보존했다. profile별 entries 33/146/62/61/392개에는 최근 batch 요약도 모두 존재했다. pool은 670 rows였다. 전체 bundle의 model JSON은 270,430 bytes, prediction JSON은 214,157 bytes였다.
 
 이 첫 실행은 이전 push run `37298255789`의 이력으로 계획했다. 예측 작업 합계 1,762.5초, 실측 합계 2,297.247초, assignment WAPE 25.69%, 예측 task makespan 73.483초, 실측 132.563초였다. 첫 profile 학습 이전의 값이므로 새 학습 모델의 정확도 개선 증거로 해석하지 않는다. 다음 실행이 이 run의 prediction을 읽는지, 여러 profile에서 같은 workspace/task를 학습한 후 그 비용 범위가 후속 Plan에 보이는지 확인한다.
+
+## 후속 실행: 다음 예측의 오차와 누적 profile
+
+[37348388715](https://github.com/XionWCFM/nanoom-fixtures/actions/runs/37348388715)은 이전 run `37346867363`의 prediction을 1.375초에 읽었다. 640개 작업 모두 exact history였고 예측 작업 합계 2,297.247초가 이전 실측 합계와 일치했다. 공개 v0.9.0으로 24 assignment·640개 작업 및 aggregate status가 모두 성공했다. Plan과 측정 identity의 누락·중복이 없었다.
+
+작업 실측 합계는 2,079.574초, assignment WAPE는 23.84%, 예측 task makespan은 96.044초, 실측은 149.095초였다. 첫 실행의 WAPE 25.69%보다 낮지만 makespan은 늘었다. CPU 분포와 외부 준비 비용이 달라진 실제 CI 두 번의 결과이며 일반적인 성능 개선을 증명하지 않는다.
+
+Xeon Platinum 8370C가 추가로 관측돼 누적 profile은 6개였다. history는 추가 관측 664개를 받아들였고 거부된 measurement·degraded scope가 없었다. 각 profile의 모든 entry에 최근 batch 요약이 존재했으며, 228개 profile entry는 최근 batch가 두 개 이상이었다. 450개 key가 여러 profile의 prediction table에 존재했다. 이 숫자는 task·group fallback·preparation key를 포함하며 작업 450개라는 뜻이 아니다. pool은 694 rows, 전체 model JSON은 386,445 bytes, prediction JSON은 266,808 bytes였다.
+
+이 기록 이후 새 실행의 Plan에서 누적 prediction을 읽고 `environmentUncertainty`의 작업 수·최소/최대 작업 비용을 보존하는지 검증한다. 해당 범위는 여러 profile에서 관측한 작업 비용이며 전체 assignment wall time의 신뢰구간이 아니다.
