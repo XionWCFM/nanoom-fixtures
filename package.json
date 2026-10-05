@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "knip": "catalog:",
-    "lefthook": "2.1.14",
+    "lefthook": "2.1.16",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "turbo": "catalog:",
