@@ -18,4 +18,5 @@ catalog를 사용합니다. 실제 workspace의 Vite/Vitest 도구는 각 packag
 - `fixtures/pnpm-nx`: pnpm + Nx의 실제 설치·실행 fixture.
 - `scripts/generate-scale-fixture.mjs`: Next service 생성 규칙.
 - `scripts/scale-scenario.mjs`: small/medium/full 변경 계획. 기본 실행은 파일을 바꾸지 않습니다.
-- [공개 v0.7.7 실행 증거](docs/validation/v0.7.7-released-path.md).
+- [공개 v0.8.0 실행 증거](docs/validation/v0.8.0-released-path.md).
+- [이전 v0.7.7 실행 증거](docs/validation/v0.7.7-released-path.md).
