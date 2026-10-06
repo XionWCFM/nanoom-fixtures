@@ -50,7 +50,7 @@ for (let index = 0; index < count; index += 1) {
   );
   await writeFile(
     new URL("app/smoke.test.ts", root),
-    `import { expect, test } from "vitest";\ntest("workspace identity", () => expect("next-app-${id}").toBe("next-app-${id}"));\n`,
+    `import { createElement } from "react";\nimport { renderToStaticMarkup } from "react-dom/server";\nimport { expect, test } from "vitest";\nimport Page from "./page";\n\ntest("renders the workspace identity", () => {\n  expect(renderToStaticMarkup(createElement(Page))).toBe("<main>next-app-${id}</main>");\n});\n`,
   );
   await writeFile(
     new URL("next.config.ts", root),
