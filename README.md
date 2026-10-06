@@ -20,3 +20,12 @@ catalog를 사용합니다. 실제 workspace의 Vite/Vitest 도구는 각 packag
 - `scripts/scale-scenario.mjs`: small/medium/full 변경 계획. 기본 실행은 파일을 바꾸지 않습니다.
 - [공개 v0.8.0 실행 증거](docs/validation/v0.8.0-released-path.md).
 - [이전 v0.7.7 실행 증거](docs/validation/v0.7.7-released-path.md).
+
+## 테스트 유지 기준
+
+테스트 개수와 coverage 비율을 합격 기준으로 삼지 않습니다. app/core/shared는 실제
+import로 내부 dependency 연결을 확인하고, Next smoke는 실제 React 페이지를 렌더링합니다.
+생성기도 동일한 페이지 동작을 검사하며 문자열 자기 비교 테스트를 만들지 않습니다.
+128개 service는 대규모 monorepo의 작업 부하로 유지합니다. 독립적인 기능 회귀
+128개가 있다는 뜻은 아닙니다. 잘못된 페이지는 smoke가 실패해야 하며, 설치·실행의
+완료 증거는 공개 Nanoom Plan에 계획된 assignment와 aggregate status로 확인합니다.
